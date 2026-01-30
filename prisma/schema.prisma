@@ -1,0 +1,980 @@
+// BMan Admin Dashboard - Prisma Schema
+// Shares the same PostgreSQL database as bman-web
+// Contains all existing bman-web models (read-only) + new admin-specific models
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// =====================================================================
+// EXISTING BMAN-WEB MODELS (verbatim copy - DO NOT modify these)
+// =====================================================================
+
+// ==================== USER MANAGEMENT ====================
+
+model User {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  passwordHash     String    @map("password_hash")
+  fullName         String    @map("full_name")
+  phone            String?
+  companyName      String?   @map("company_name")
+  avatarUrl        String?   @map("avatar_url")
+
+  isActive         Boolean   @default(true) @map("is_active")
+  emailVerified    Boolean   @default(false) @map("email_verified")
+  twoFactorEnabled Boolean   @default(true) @map("two_factor_enabled")
+  twoFactorMethod  TwoFactorMethod @default(EMAIL) @map("two_factor_method")
+  totpSecret       String?   @map("totp_secret")
+  totpVerifiedAt   DateTime? @map("totp_verified_at")
+  role             String    @default("user")
+
+  passwordResetToken   String?   @map("password_reset_token")
+  passwordResetExpires DateTime? @map("password_reset_expires")
+
+  billingAddress   Json?     @map("billing_address")
+  proSettings      Json?     @map("pro_settings")
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  lastLoginAt      DateTime? @map("last_login_at")
+
+  subscription     Subscription?
+  productKeys      ProductKey[]
+  devices          DeviceRegistry[]
+  payments         Payment[]
+  twoFactorCodes   TwoFactorCode[]
+  activityLogs     ActivityLog[]
+  sessions         Session[]
+  teamUsers        TeamUser[]
+  apiKeys          ApiKey[]
+  supportTickets   SupportTicket[] // Support tickets created by user
+
+  @@map("users")
+}
+
+// ==================== SUBSCRIPTION MANAGEMENT ====================
+
+model SubscriptionTier {
+  id             String   @id @default(uuid())
+  name           String   @unique
+  displayName    String   @map("display_name")
+  priceMonthly   Int      @map("price_monthly")
+  priceYearly    Int      @map("price_yearly")
+
+  maxDevices     Int      @default(1) @map("max_devices")
+  maxProducts    Int      @default(100) @map("max_products")
+  maxUsers       Int      @default(1) @map("max_users")
+  offlineMode    Boolean  @default(true) @map("offline_mode")
+  cloudSync      Boolean  @default(false) @map("cloud_sync")
+  backupEnabled  Boolean  @default(false) @map("backup_enabled")
+  userManagement Boolean  @default(false) @map("user_management")
+  accessLevels   Boolean  @default(false) @map("access_levels")
+  prioritySupport Boolean @default(false) @map("priority_support")
+
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  subscriptions  Subscription[]
+  productKeys    ProductKey[]
+
+  @@map("subscription_tiers")
+}
+
+model Subscription {
+  id            String   @id @default(uuid())
+  userId        String   @unique @map("user_id")
+  tierId        String   @map("tier_id")
+
+  status        SubscriptionStatus @default(PENDING)
+  billingCycle  BillingCycle @default(MONTHLY) @map("billing_cycle")
+  autoRenew     Boolean  @default(true) @map("auto_renew")
+
+  // Trial period
+  isTrial       Boolean  @default(false) @map("is_trial")
+  trialEndsAt   DateTime? @map("trial_ends_at")
+
+  startsAt      DateTime @default(now()) @map("starts_at")
+  expiresAt     DateTime @map("expires_at")
+  cancelledAt   DateTime? @map("cancelled_at")
+
+  pricePaid     Int      @default(0) @map("price_paid")
+  currency      String   @default("RWF")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tier          SubscriptionTier @relation(fields: [tierId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@map("subscriptions")
+}
+
+enum SubscriptionStatus {
+  PENDING
+  ACTIVE
+  EXPIRED
+  CANCELLED
+  SUSPENDED
+}
+
+enum BillingCycle {
+  MONTHLY
+  BIANNUAL
+  YEARLY
+}
+
+// ==================== PRODUCT KEYS ====================
+
+model ProductKey {
+  id               String    @id @default(uuid())
+  key              String    @unique
+  tierId           String    @map("tier_id")
+  userId           String?   @map("user_id")
+
+  isUsed           Boolean   @default(false) @map("is_used")
+  usedAt           DateTime? @map("used_at")
+
+  maxDevices       Int       @default(1) @map("max_devices")
+  devicesRegistered Int      @default(0) @map("devices_registered")
+
+  validityDays     Int       @default(30) @map("validity_days")
+  expiresAt        DateTime? @map("expires_at")
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  tier             SubscriptionTier @relation(fields: [tierId], references: [id])
+  user             User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  devices          DeviceRegistry[]
+
+  @@index([key])
+  @@index([userId])
+  @@map("product_keys")
+}
+
+// ==================== DEVICE MANAGEMENT ====================
+
+model DeviceRegistry {
+  id           String   @id @default(uuid())
+  deviceId     String   @map("device_id")
+  userId       String   @map("user_id")
+  productKeyId String?  @map("product_key_id")
+
+  deviceName   String?  @map("device_name")
+  platform     String?
+  tier         String
+  role         String   @default("admin")
+
+  isActive     Boolean  @default(true) @map("is_active")
+  isVerified   Boolean  @default(false) @map("is_verified")
+  registeredAt DateTime @default(now()) @map("registered_at")
+  lastSeenAt   DateTime @default(now()) @map("last_seen_at")
+
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  productKey   ProductKey? @relation(fields: [productKeyId], references: [id])
+
+  @@unique([deviceId, userId])
+  @@index([deviceId])
+  @@index([userId])
+  @@map("device_registry")
+}
+
+// ==================== PAYMENTS ====================
+
+model Payment {
+  id              String   @id @default(uuid())
+  userId          String   @map("user_id")
+
+  flwRef          String?  @unique @map("flw_ref")
+  txRef           String   @unique @map("tx_ref")
+
+  amount          Int
+  currency        String   @default("RWF")
+  paymentMethod   PaymentMethod @map("payment_method")
+
+  status          PaymentStatus @default(PENDING)
+
+  planTier        String   @map("plan_tier")
+  billingCycle    BillingCycle @map("billing_cycle")
+
+  flwResponse     Json?    @map("flw_response")
+
+  paidAt          DateTime? @map("paid_at")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([txRef])
+  @@index([status])
+  @@map("payments")
+}
+
+enum PaymentMethod {
+  MOMO
+  CARD
+  BANK
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  SUCCESSFUL
+  FAILED
+  CANCELLED
+  REFUNDED
+}
+
+// ==================== AUTHENTICATION ====================
+
+model Session {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  token       String   @unique
+
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@map("sessions")
+}
+
+model TwoFactorCode {
+  id        String   @id @default(uuid())
+  userId    String   @map("user_id")
+  code      String
+
+  expiresAt DateTime @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([code])
+  @@map("two_factor_codes")
+}
+
+// ==================== ACTIVITY LOGGING ====================
+
+model ActivityLog {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+
+  action      String
+  details     Json?
+
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user        User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt])
+  @@map("activity_logs")
+}
+
+// ==================== NEWSLETTER ====================
+
+model NewsletterSubscriber {
+  id          String   @id @default(uuid())
+  email       String   @unique
+
+  isActive    Boolean  @default(true) @map("is_active")
+  subscribedAt DateTime @default(now()) @map("subscribed_at")
+  unsubscribedAt DateTime? @map("unsubscribed_at")
+
+  @@map("newsletter_subscribers")
+}
+
+// ==================== FEEDBACK & SUPPORT ====================
+
+model Feedback {
+  id          String   @id @default(uuid())
+  userId      String?  @map("user_id")
+  email       String?
+
+  type        FeedbackType
+  subject     String
+  message     String
+
+  status      FeedbackStatus @default(NEW)
+
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("feedback")
+}
+
+enum FeedbackType {
+  BUG
+  FEATURE
+  GENERAL
+  SUPPORT
+}
+
+enum FeedbackStatus {
+  NEW
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+// ==================== SUPPORT TICKETS ====================
+
+model SupportTicket {
+  id            String         @id @default(uuid())
+  ticketNumber  String         @unique @map("ticket_number")
+  userId        String?        @map("user_id")
+  email         String
+  name          String?
+  category      TicketCategory
+  priority      TicketPriority @default(MEDIUM)
+  subject       String
+  message       String
+  status        TicketStatus   @default(OPEN)
+  assignedTo    String?        @map("assigned_to")
+  resolvedAt    DateTime?      @map("resolved_at")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+
+  user          User?          @relation(fields: [userId], references: [id], onDelete: SetNull)
+  responses     TicketResponse[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([ticketNumber])
+  @@map("support_tickets")
+}
+
+model TicketResponse {
+  id          String        @id @default(uuid())
+  ticketId    String        @map("ticket_id")
+  message     String
+  isStaff     Boolean       @default(false) @map("is_staff")
+  responderId String?       @map("responder_id")
+  createdAt   DateTime      @default(now()) @map("created_at")
+
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+
+  @@index([ticketId])
+  @@map("ticket_responses")
+}
+
+enum TicketCategory {
+  BILLING
+  TECHNICAL
+  ACCOUNT
+  FEATURE_REQUEST
+  OTHER
+}
+
+enum TicketPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum TicketStatus {
+  OPEN
+  IN_PROGRESS
+  WAITING_ON_CUSTOMER
+  RESOLVED
+  CLOSED
+}
+
+enum TwoFactorMethod {
+  EMAIL
+  TOTP
+  BOTH
+}
+
+// ==================== SYNC & ANALYTICS ====================
+
+model SyncData {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  deviceId     String   @map("device_id")
+
+  tableName    String   @map("table_name")
+  recordId     String   @map("record_id")
+  action       String
+  data         Json
+
+  syncedAt     DateTime @default(now()) @map("synced_at")
+  version      Int      @default(1)
+
+  @@unique([userId, tableName, recordId])
+  @@index([userId])
+  @@index([deviceId])
+  @@index([tableName])
+  @@map("sync_data")
+}
+
+model AnalyticsSummary {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  deviceId     String   @map("device_id")
+
+  metricType   String   @map("metric_type")
+  periodStart  DateTime @map("period_start")
+  periodEnd    DateTime @map("period_end")
+  data         Json
+
+  syncedAt     DateTime @default(now()) @map("synced_at")
+
+  @@unique([userId, deviceId, metricType, periodStart, periodEnd])
+  @@index([userId])
+  @@index([metricType])
+  @@map("analytics_summary")
+}
+
+model CompanySettings {
+  id             String   @id @default(uuid())
+  userId         String   @unique @map("user_id")
+
+  siteName       String   @default("BMan Stock") @map("site_name")
+  logoUrl        String?  @map("logo_url")
+  stampUrl       String?  @map("stamp_url")
+  tin            String?
+  contactEmail   String?  @map("contact_email")
+  contactPhone   String?  @map("contact_phone")
+  address        String?
+  currency       String   @default("RWF")
+  taxRate        Float    @default(0.18) @map("tax_rate")
+  lowStockAlert  Int      @default(10) @map("low_stock_alert")
+
+  syncedAt       DateTime @default(now()) @map("synced_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("company_settings")
+}
+
+model RemoteSettings {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+
+  pinRequired      Boolean  @default(true) @map("pin_required")
+  autoLockTimeout  Int      @default(600000) @map("auto_lock_timeout")
+  notifyMethods    String[] @map("notify_methods")
+  backupEnabled    Boolean  @default(false) @map("backup_enabled")
+  backupFrequency  String   @default("daily") @map("backup_frequency")
+
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("remote_settings")
+}
+
+model Backup {
+  id           String   @id @default(uuid())
+  userId       String   @map("user_id")
+  deviceId     String   @map("device_id")
+
+  backupType   String   @map("backup_type")
+  fileName     String   @map("file_name")
+  fileSize     Int?     @map("file_size")
+  storageUrl   String?  @map("storage_url")
+  status       BackupStatus @default(PENDING)
+  errorMessage String?  @map("error_message")
+
+  createdAt    DateTime @default(now()) @map("created_at")
+  completedAt  DateTime? @map("completed_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("backups")
+}
+
+enum BackupStatus {
+  PENDING
+  UPLOADING
+  COMPLETED
+  FAILED
+}
+
+model AdminNotification {
+  id           String    @id @default(uuid())
+  userId       String?   @map("user_id")
+
+  title        String
+  message      String
+  type         String    @default("info")
+  actionUrl    String?   @map("action_url")
+
+  expiresAt    DateTime? @map("expires_at")
+  createdAt    DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("admin_notifications")
+}
+
+model NotificationRead {
+  id             String   @id @default(uuid())
+  notificationId String   @map("notification_id")
+  userId         String   @map("user_id")
+  deviceId       String?  @map("device_id")
+  readAt         DateTime @default(now()) @map("read_at")
+
+  @@unique([notificationId, userId])
+  @@map("notification_reads")
+}
+
+// ==================== PRO TIER: TEAM USER MANAGEMENT ====================
+
+model TeamUser {
+  id               String    @id @default(uuid())
+  accountOwnerId   String    @map("account_owner_id")
+  email            String
+  passwordHash     String?   @map("password_hash")
+  fullName         String    @map("full_name")
+  phone            String?
+  role             String    @default("cashier")
+
+  permissions      Json?     @default("[]")
+
+  isActive         Boolean   @default(true) @map("is_active")
+  emailVerified    Boolean   @default(false) @map("email_verified")
+  inviteToken      String?   @map("invite_token")
+  inviteExpires    DateTime? @map("invite_expires")
+
+  twoFactorEnabled Boolean   @default(false) @map("two_factor_enabled")
+  twoFactorMethod  TwoFactorMethod @default(EMAIL) @map("two_factor_method")
+  totpSecret       String?   @map("totp_secret")
+
+  pinHash          String?   @map("pin_hash")
+  pinEnabled       Boolean   @default(false) @map("pin_enabled")
+
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+  lastLoginAt      DateTime? @map("last_login_at")
+
+  accountOwner     User      @relation(fields: [accountOwnerId], references: [id], onDelete: Cascade)
+  sessions         TeamUserSession[]
+  activityLogs     TeamUserActivity[]
+  devices          TeamDevice[]
+
+  @@unique([accountOwnerId, email])
+  @@index([accountOwnerId])
+  @@map("team_users")
+}
+
+model TeamUserSession {
+  id          String   @id @default(uuid())
+  teamUserId  String   @map("team_user_id")
+  deviceId    String   @map("device_id")
+  token       String   @unique
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teamUser    TeamUser @relation(fields: [teamUserId], references: [id], onDelete: Cascade)
+
+  @@index([teamUserId])
+  @@map("team_user_sessions")
+}
+
+model TeamUserActivity {
+  id          String   @id @default(uuid())
+  teamUserId  String   @map("team_user_id")
+  deviceId    String?  @map("device_id")
+  action      String
+  details     Json?
+  ipAddress   String?  @map("ip_address")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teamUser    TeamUser @relation(fields: [teamUserId], references: [id], onDelete: Cascade)
+
+  @@index([teamUserId])
+  @@map("team_user_activities")
+}
+
+model TeamDevice {
+  id              String   @id @default(uuid())
+  accountOwnerId  String   @map("account_owner_id")
+  teamUserId      String   @map("team_user_id")
+  deviceId        String   @map("device_id")
+  deviceName      String?  @map("device_name")
+  platform        String?
+
+  isActive        Boolean  @default(true) @map("is_active")
+  registeredAt    DateTime @default(now()) @map("registered_at")
+  lastSeenAt      DateTime @default(now()) @map("last_seen_at")
+
+  teamUser        TeamUser @relation(fields: [teamUserId], references: [id], onDelete: Cascade)
+
+  @@unique([accountOwnerId, deviceId])
+  @@index([teamUserId])
+  @@index([deviceId])
+  @@map("team_devices")
+}
+
+// ==================== PRO TIER: BACKUP PROVIDERS ====================
+
+model BackupProvider {
+  id               String   @id @default(uuid())
+  userId           String   @map("user_id")
+  provider         String
+  isDefault        Boolean  @default(false) @map("is_default")
+
+  accessToken      String?  @map("access_token")
+  refreshToken     String?  @map("refresh_token")
+  tokenExpiry      DateTime? @map("token_expiry")
+  config           Json?
+
+  lastBackupAt     DateTime? @map("last_backup_at")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@unique([userId, provider])
+  @@index([userId])
+  @@map("backup_providers")
+}
+
+// ==================== PRO TIER: EMAIL NOTIFICATIONS ====================
+
+model EmailNotificationSettings {
+  id                    String   @id @default(uuid())
+  userId                String   @unique @map("user_id")
+
+  lowStockAlerts        Boolean  @default(true) @map("low_stock_alerts")
+  dailySummary          Boolean  @default(false) @map("daily_summary")
+  weeklySummary         Boolean  @default(true) @map("weekly_summary")
+  salesAlerts           Boolean  @default(false) @map("sales_alerts")
+  orderAlerts           Boolean  @default(true) @map("order_alerts")
+  securityAlerts        Boolean  @default(true) @map("security_alerts")
+
+  summaryTime           String   @default("09:00") @map("summary_time")
+  timezone              String   @default("Africa/Kigali")
+
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  @@map("email_notification_settings")
+}
+
+// ==================== PRO TIER: REMOTE CONTROL ====================
+
+model RemoteCommand {
+  id               String    @id @default(uuid())
+  userId           String    @map("user_id")
+  deviceId         String?   @map("device_id")
+  command          String
+  payload          Json?
+  status           String    @default("pending")
+  executedAt       DateTime? @map("executed_at")
+  result           Json?
+  createdAt        DateTime  @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@index([deviceId])
+  @@index([status])
+  @@map("remote_commands")
+}
+
+// ==================== PRO TIER: API KEYS ====================
+
+model ApiKey {
+  id          String    @id @default(uuid())
+  userId      String    @map("user_id")
+  name        String
+  keyHash     String    @unique @map("key_hash")
+  keyPrefix   String    @map("key_prefix")
+  permissions String[]
+  lastUsedAt  DateTime? @map("last_used_at")
+  expiresAt   DateTime? @map("expires_at")
+  isActive    Boolean   @default(true) @map("is_active")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([keyHash])
+  @@map("api_keys")
+}
+
+// ==================== DOWNLOAD TRACKING ====================
+
+model DownloadHistory {
+  id          String   @id @default(uuid())
+  userId      String   @map("user_id")
+  platform    String
+  version     String?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@index([userId])
+  @@map("download_history")
+}
+
+// ==================== PRO TIER: CUSTOM BRANDING ====================
+
+model CustomBranding {
+  id               String   @id @default(uuid())
+  userId           String   @unique @map("user_id")
+
+  logoUrl          String?  @map("logo_url")
+  stampUrl         String?  @map("stamp_url")
+  faviconUrl       String?  @map("favicon_url")
+
+  primaryColor     String?  @map("primary_color")
+  secondaryColor   String?  @map("secondary_color")
+
+  invoiceHeader    String?  @map("invoice_header")
+  invoiceFooter    String?  @map("invoice_footer")
+  receiptHeader    String?  @map("receipt_header")
+  receiptFooter    String?  @map("receipt_footer")
+
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("custom_branding")
+}
+
+
+// =====================================================================
+// NEW ADMIN-SPECIFIC MODELS
+// =====================================================================
+
+// ==================== ADMIN USER MANAGEMENT ====================
+
+model AdminUser {
+  id               String    @id @default(uuid())
+  email            String    @unique
+  passwordHash     String    @map("password_hash")
+  fullName         String    @map("full_name")
+  role             AdminRole @default(SUPPORT)
+  isActive         Boolean   @default(true) @map("is_active")
+  twoFactorEnabled Boolean   @default(true) @map("two_factor_enabled")
+  twoFactorMethod  TwoFactorMethod @default(EMAIL) @map("two_factor_method")
+  totpSecret       String?   @map("totp_secret")
+  invitedBy        String?   @map("invited_by")
+  inviteToken      String?   @unique @map("invite_token")
+  inviteExpires    DateTime? @map("invite_expires")
+  mustChangePassword Boolean @default(true) @map("must_change_password")
+  lastLoginAt      DateTime? @map("last_login_at")
+  createdAt        DateTime  @default(now()) @map("created_at")
+  updatedAt        DateTime  @updatedAt @map("updated_at")
+
+  sessions         AdminSession[]
+  auditLogs        AdminAuditLog[]
+
+  @@map("admin_users")
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  SUPPORT
+  MARKETING
+}
+
+model AdminSession {
+  id          String   @id @default(uuid())
+  adminId     String   @map("admin_id")
+  token       String   @unique
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin       AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([token])
+  @@map("admin_sessions")
+}
+
+model AdminAuditLog {
+  id          String   @id @default(uuid())
+  adminId     String?  @map("admin_id")
+  action      String
+  resource    String
+  resourceId  String?  @map("resource_id")
+  details     Json?
+  ipAddress   String?  @map("ip_address")
+  userAgent   String?  @map("user_agent")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  admin       AdminUser? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([action])
+  @@index([resource])
+  @@index([createdAt])
+  @@map("admin_audit_logs")
+}
+
+model AdminTwoFactorCode {
+  id        String    @id @default(uuid())
+  adminId   String    @map("admin_id")
+  code      String
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+
+  @@index([adminId])
+  @@index([code])
+  @@map("admin_two_factor_codes")
+}
+
+// ==================== FEATURE FLAGS ====================
+
+model GlobalFeatureFlag {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  displayName String   @map("display_name")
+  description String?
+  isEnabled   Boolean  @default(false) @map("is_enabled")
+  config      Json?
+  tier        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  overrides   FeatureFlagOverride[]
+
+  @@map("global_feature_flags")
+}
+
+model FeatureFlagOverride {
+  id        String   @id @default(uuid())
+  flagId    String   @map("flag_id")
+  userId    String?  @map("user_id")
+  tier      String?
+  isEnabled Boolean  @map("is_enabled")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  flag      GlobalFeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  @@unique([flagId, userId])
+  @@map("feature_flag_overrides")
+}
+
+// ==================== APP VERSION CONTROL ====================
+
+model AppVersion {
+  id            String    @id @default(uuid())
+  version       String    @unique
+  platform      String
+  channel       String    @default("stable")
+  releaseNotes  String?   @map("release_notes")
+  downloadUrl   String?   @map("download_url")
+  fileSize      Int?      @map("file_size")
+  checksum      String?
+  isActive      Boolean   @default(true) @map("is_active")
+  isMandatory   Boolean   @default(false) @map("is_mandatory")
+  minOsVersion  String?   @map("min_os_version")
+  publishedAt   DateTime? @map("published_at")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  @@map("app_versions")
+}
+
+// ==================== PRESS & NEWS ====================
+
+model PressArticle {
+  id          String    @id @default(uuid())
+  title       String
+  slug        String    @unique
+  content     String
+  excerpt     String?
+  coverImage  String?   @map("cover_image")
+  category    String    @default("news")
+  status      String    @default("draft")
+  authorId    String?   @map("author_id")
+  publishedAt DateTime? @map("published_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@index([category])
+  @@map("press_articles")
+}
+
+// ==================== NEWSLETTER CAMPAIGNS ====================
+
+model NewsletterCampaign {
+  id             String    @id @default(uuid())
+  subject        String
+  content        String
+  status         String    @default("draft")
+  recipientCount Int       @default(0) @map("recipient_count")
+  sentCount      Int       @default(0) @map("sent_count")
+  openCount      Int       @default(0) @map("open_count")
+  clickCount     Int       @default(0) @map("click_count")
+  scheduledAt    DateTime? @map("scheduled_at")
+  sentAt         DateTime? @map("sent_at")
+  createdBy      String?   @map("created_by")
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@index([status])
+  @@map("newsletter_campaigns")
+}
+
+// ==================== EMAIL TEMPLATES ====================
+
+model EmailTemplate {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  subject     String
+  htmlContent String   @map("html_content")
+  category    String   @default("general")
+  variables   Json?
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  @@map("email_templates")
+}
+
+// ==================== EMAIL SEND LOG ====================
+
+model EmailSendLog {
+  id             String   @id @default(uuid())
+  templateId     String?  @map("template_id")
+  campaignId     String?  @map("campaign_id")
+  recipientEmail String   @map("recipient_email")
+  subject        String
+  status         String   @default("sent")
+  sentBy         String?  @map("sent_by")
+  sentAt         DateTime @default(now()) @map("sent_at")
+
+  @@index([recipientEmail])
+  @@index([campaignId])
+  @@index([sentAt])
+  @@map("email_send_logs")
+}
+
+// ==================== ADMIN SYSTEM SETTINGS ====================
+
+model AdminSystemSettings {
+  id               String   @id @default("default")
+  maintenanceMode  Boolean  @default(false) @map("maintenance_mode")
+  registrationOpen Boolean  @default(true) @map("registration_open")
+  maxFreeTrialDays Int      @default(0) @map("max_free_trial_days")
+  supportEmail     String   @default("butmanltd@gmail.com") @map("support_email")
+  config           Json?
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  @@map("admin_system_settings")
+}
