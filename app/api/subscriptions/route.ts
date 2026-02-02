@@ -60,12 +60,6 @@ export async function POST(request: Request) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // Check if user already has a subscription
-    const existingSub = await prisma.subscription.findUnique({ where: { userId } });
-    if (existingSub) {
-      return NextResponse.json({ success: false, error: 'User already has a subscription. Use edit instead.' }, { status: 400 });
-    }
-
     // Check if tier exists
     const tier = await prisma.subscriptionTier.findUnique({ where: { id: tierId } });
     if (!tier) {
@@ -73,33 +67,124 @@ export async function POST(request: Request) {
     }
 
     const cycle = billingCycle || 'MONTHLY';
-    const days = validityDays || (cycle === 'YEARLY' ? 365 : 30);
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + days);
+    const days = validityDays || (cycle === 'YEARLY' ? 365 : cycle === 'BIANNUAL' ? 180 : 30);
+    const price = pricePaid || (cycle === 'YEARLY' ? tier.priceYearly : tier.priceMonthly);
 
-    const subscription = await prisma.subscription.create({
-      data: {
-        userId,
-        tierId,
-        status: 'ACTIVE',
-        billingCycle: cycle,
-        startsAt: new Date(),
-        expiresAt,
-        pricePaid: pricePaid || (cycle === 'YEARLY' ? tier.priceYearly : tier.priceMonthly),
-      },
-      include: {
-        user: { select: { email: true, fullName: true } },
-        tier: { select: { name: true, displayName: true } },
-      },
-    });
+    // Check for existing subscription
+    const existingSub = await prisma.subscription.findUnique({ where: { userId } });
 
-    await logAdminAction(result.session.adminId, 'subscription.create', 'subscription', subscription.id, { userId, tierId, billingCycle: cycle }, request);
+    // Generate unique transaction reference for payment
+    const txRef = `ADMIN-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
-    return NextResponse.json({
-      success: true,
-      data: subscription,
-      message: 'Subscription created successfully',
-    });
+    if (existingSub) {
+      // RENEWAL: Only allow if subscription is EXPIRED or CANCELLED
+      if (existingSub.status === 'ACTIVE') {
+        return NextResponse.json({
+          success: false,
+          error: 'User has an active subscription. Use extend or modify instead.',
+        }, { status: 400 });
+      }
+
+      // Calculate new expiry from NOW (not from old expiry)
+      const newExpiresAt = new Date();
+      newExpiresAt.setDate(newExpiresAt.getDate() + days);
+
+      // Update subscription (tier change allowed)
+      const subscription = await prisma.subscription.update({
+        where: { userId },
+        data: {
+          tierId,
+          status: 'ACTIVE',
+          billingCycle: cycle,
+          expiresAt: newExpiresAt,
+          pricePaid: price,
+        },
+        include: {
+          user: { select: { email: true, fullName: true } },
+          tier: { select: { name: true, displayName: true } },
+        },
+      });
+
+      // Create payment record for renewal
+      await prisma.payment.create({
+        data: {
+          userId,
+          txRef,
+          amount: price,
+          currency: 'RWF',
+          paymentMethod: 'BANK',
+          status: 'SUCCESSFUL',
+          planTier: tier.name,
+          billingCycle: cycle,
+          paidAt: new Date(),
+        },
+      });
+
+      await logAdminAction(
+        result.session.adminId,
+        'subscription.renew',
+        'subscription',
+        subscription.id,
+        { userId, tierId, billingCycle: cycle, days, previousStatus: existingSub.status },
+        request
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: subscription,
+        message: 'Subscription renewed successfully',
+      });
+    } else {
+      // NEW SUBSCRIPTION: Create fresh
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + days);
+
+      const subscription = await prisma.subscription.create({
+        data: {
+          userId,
+          tierId,
+          status: 'ACTIVE',
+          billingCycle: cycle,
+          startsAt: new Date(),
+          expiresAt,
+          pricePaid: price,
+        },
+        include: {
+          user: { select: { email: true, fullName: true } },
+          tier: { select: { name: true, displayName: true } },
+        },
+      });
+
+      // Create payment record for new subscription
+      await prisma.payment.create({
+        data: {
+          userId,
+          txRef,
+          amount: price,
+          currency: 'RWF',
+          paymentMethod: 'BANK',
+          status: 'SUCCESSFUL',
+          planTier: tier.name,
+          billingCycle: cycle,
+          paidAt: new Date(),
+        },
+      });
+
+      await logAdminAction(
+        result.session.adminId,
+        'subscription.create',
+        'subscription',
+        subscription.id,
+        { userId, tierId, billingCycle: cycle },
+        request
+      );
+
+      return NextResponse.json({
+        success: true,
+        data: subscription,
+        message: 'Subscription created successfully',
+      });
+    }
   } catch (error) {
     console.error('Create subscription error:', error);
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });

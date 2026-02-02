@@ -9,7 +9,7 @@ interface Recipient {
 }
 
 interface SendMailingBody {
-  recipients: Recipient[] | string;
+  recipients: (Recipient | string)[] | string;
   templateId?: string;
   subject?: string;
   htmlContent?: string;
@@ -31,14 +31,29 @@ export async function POST(request: Request) {
     const { recipients, templateId, variables = {} } = body;
     let { subject, htmlContent } = body;
 
-    // Normalize recipients to array
-    const recipientList: Recipient[] = typeof recipients === 'string'
-      ? [{ email: recipients }]
-      : recipients;
+    // Normalize recipients to array of Recipient objects
+    let recipientList: Recipient[];
+    if (typeof recipients === 'string') {
+      // Single email string
+      recipientList = [{ email: recipients }];
+    } else if (Array.isArray(recipients)) {
+      // Array - could be strings or objects
+      recipientList = recipients.map((r) => {
+        if (typeof r === 'string') {
+          return { email: r };
+        }
+        return r;
+      });
+    } else {
+      recipientList = [];
+    }
+
+    // Filter out any invalid emails
+    recipientList = recipientList.filter((r) => r.email && r.email.trim());
 
     if (!recipientList || recipientList.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'At least one recipient is required' },
+        { success: false, error: 'At least one valid recipient is required' },
         { status: 400 }
       );
     }

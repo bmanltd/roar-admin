@@ -45,13 +45,39 @@ export async function GET(request: Request) {
         orderBy: { sentAt: 'desc' },
         skip: (page - 1) * limit,
         take: limit,
+        select: {
+          id: true,
+          templateId: true,
+          recipientEmail: true,
+          subject: true,
+          status: true,
+          sentBy: true,
+          sentAt: true,
+        },
       }),
       prisma.emailSendLog.count({ where }),
     ]);
 
+    // Fetch admin names for sentBy IDs
+    const adminIds = [...new Set(logs.map(log => log.sentBy).filter(Boolean))] as string[];
+    const admins = adminIds.length > 0
+      ? await prisma.adminUser.findMany({
+          where: { id: { in: adminIds } },
+          select: { id: true, fullName: true },
+        })
+      : [];
+    const adminMap = new Map(admins.map(a => [a.id, a.fullName]));
+
+    // Transform logs to include admin name
+    const transformedLogs = logs.map(log => ({
+      ...log,
+      sentByName: log.sentBy ? adminMap.get(log.sentBy) || 'Unknown' : null,
+      sentAt: log.sentAt?.toISOString() || null,
+    }));
+
     return NextResponse.json({
       success: true,
-      data: logs,
+      data: transformedLogs,
       pagination: {
         page,
         limit,

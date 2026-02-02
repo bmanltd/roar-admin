@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { FileText, Send, History, Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { FileText, Send, History, Plus, Edit2, Trash2, Search, ChevronLeft, ChevronRight, Users, UserPlus, Loader2, X } from 'lucide-react';
 
 // Types
 interface Template {
@@ -37,10 +37,11 @@ interface HistoryItem {
   id: string;
   recipientEmail: string;
   subject: string;
-  templateName: string | null;
+  templateId: string | null;
   status: string;
-  sentBy: string;
-  createdAt: string;
+  sentBy: string | null;
+  sentByName: string | null;
+  sentAt: string | null;
 }
 
 export default function MailingsPage() {
@@ -62,7 +63,7 @@ export default function MailingsPage() {
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   // Send Email State
-  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('');
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string>('none');
   const [selectedTemplate, setSelectedTemplate] = useState<Template | null>(null);
   const [userSearch, setUserSearch] = useState('');
   const [searchResults, setSearchResults] = useState<User[]>([]);
@@ -73,6 +74,10 @@ export default function MailingsPage() {
   const [variableValues, setVariableValues] = useState<Record<string, string>>({});
   const [sendingEmail, setSendingEmail] = useState(false);
   const [searchingUsers, setSearchingUsers] = useState(false);
+  const [loadingSubscribers, setLoadingSubscribers] = useState(false);
+  const [loadingAllUsers, setLoadingAllUsers] = useState(false);
+  const [subscriberEmails, setSubscriberEmails] = useState<string[]>([]);
+  const [bulkUserEmails, setBulkUserEmails] = useState<string[]>([]);
 
   // History State
   const [history, setHistory] = useState<HistoryItem[]>([]);
@@ -152,7 +157,7 @@ export default function MailingsPage() {
 
   // Template selection effect
   useEffect(() => {
-    if (selectedTemplateId) {
+    if (selectedTemplateId && selectedTemplateId !== 'none') {
       const template = templates.find(t => t.id === selectedTemplateId);
       if (template) {
         setSelectedTemplate(template);
@@ -274,10 +279,14 @@ export default function MailingsPage() {
 
   // Send Email Handler
   const handleSendEmail = async () => {
-    const recipients = [
+    // Combine all recipient sources and deduplicate
+    const allEmails = new Set([
       ...selectedUsers.map(u => u.email),
+      ...subscriberEmails,
+      ...bulkUserEmails,
       ...(manualEmail ? manualEmail.split(',').map(e => e.trim()).filter(e => e) : []),
-    ];
+    ]);
+    const recipients = Array.from(allEmails);
 
     if (recipients.length === 0) {
       toast.error('Please select at least one recipient');
@@ -303,7 +312,7 @@ export default function MailingsPage() {
           recipients,
           subject: emailSubject,
           htmlContent: emailContent,
-          templateId: selectedTemplateId || undefined,
+          templateId: selectedTemplateId !== 'none' ? selectedTemplateId : undefined,
           variables: variableValues,
         }),
       });
@@ -313,8 +322,10 @@ export default function MailingsPage() {
         toast.success(`Email sent to ${data.sentCount || recipients.length} recipient(s)`);
         // Reset form
         setSelectedUsers([]);
+        setSubscriberEmails([]);
+        setBulkUserEmails([]);
         setManualEmail('');
-        setSelectedTemplateId('');
+        setSelectedTemplateId('none');
         fetchHistory();
       } else {
         toast.error(data.error || 'Failed to send email');
@@ -334,6 +345,67 @@ export default function MailingsPage() {
 
   const removeUser = (userId: string) => {
     setSelectedUsers(prev => prev.filter(u => u.id !== userId));
+  };
+
+  // Add all newsletter subscribers
+  const addAllSubscribers = async () => {
+    setLoadingSubscribers(true);
+    try {
+      const res = await fetch('/api/newsletters/subscribers?list=true');
+      const data = await res.json();
+      if (data.success && data.data) {
+        const emails = data.data.map((s: { email: string }) => s.email);
+        setSubscriberEmails(emails);
+        toast.success(`Added ${emails.length} newsletter subscribers`);
+      } else {
+        toast.error('Failed to load subscribers');
+      }
+    } catch {
+      toast.error('Failed to load subscribers');
+    } finally {
+      setLoadingSubscribers(false);
+    }
+  };
+
+  // Add all users
+  const addAllUsers = async () => {
+    setLoadingAllUsers(true);
+    try {
+      const res = await fetch('/api/users?limit=1000&status=active');
+      const data = await res.json();
+      if (data.success && data.data) {
+        const emails = data.data.map((u: { email: string }) => u.email);
+        setBulkUserEmails(emails);
+        toast.success(`Added ${emails.length} users`);
+      } else {
+        toast.error('Failed to load users');
+      }
+    } catch {
+      toast.error('Failed to load users');
+    } finally {
+      setLoadingAllUsers(false);
+    }
+  };
+
+  // Clear all recipients
+  const clearAllRecipients = () => {
+    setSelectedUsers([]);
+    setSubscriberEmails([]);
+    setBulkUserEmails([]);
+    setManualEmail('');
+    toast.success('All recipients cleared');
+  };
+
+  // Get total recipient count
+  const getTotalRecipientCount = () => {
+    const manualEmails = manualEmail.split(',').map(e => e.trim()).filter(e => e);
+    const allEmails = new Set([
+      ...selectedUsers.map(u => u.email),
+      ...subscriberEmails,
+      ...bulkUserEmails,
+      ...manualEmails,
+    ]);
+    return allEmails.size;
   };
 
   const categoryColors: Record<string, string> = {
@@ -468,7 +540,7 @@ export default function MailingsPage() {
                       <SelectValue placeholder="Select a template..." />
                     </SelectTrigger>
                     <SelectContent className="bg-neutral-900 border-neutral-800">
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="none">None</SelectItem>
                       {templates.map((t) => (
                         <SelectItem key={t.id} value={t.id}>{t.name}</SelectItem>
                       ))}
@@ -476,55 +548,131 @@ export default function MailingsPage() {
                   </Select>
                 </div>
 
-                {/* Recipients - User Search */}
-                <div className="space-y-2">
-                  <Label className="text-neutral-300">Recipients</Label>
-                  <div className="relative">
-                    <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-500" />
-                    <Input
-                      placeholder="Search users..."
-                      value={userSearch}
-                      onChange={(e) => setUserSearch(e.target.value)}
-                      className="pl-9 bg-neutral-900/80 border-neutral-800/50 text-white"
-                    />
+                {/* Recipients */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-neutral-300">Recipients</Label>
+                    {getTotalRecipientCount() > 0 && (
+                      <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                        {getTotalRecipientCount()} total
+                      </Badge>
+                    )}
                   </div>
-                  {searchingUsers && <p className="text-xs text-neutral-500">Searching...</p>}
-                  {searchResults.length > 0 && (
-                    <div className="bg-neutral-800 rounded-lg border border-neutral-700 max-h-40 overflow-y-auto">
-                      {searchResults.map((user) => (
-                        <div
-                          key={user.id}
-                          className="p-2 hover:bg-neutral-700 cursor-pointer flex items-center justify-between"
-                          onClick={() => addUser(user)}
-                        >
-                          <div>
-                            <p className="text-sm text-white">{user.fullName}</p>
-                            <p className="text-xs text-neutral-400">{user.email}</p>
-                          </div>
-                          <Plus className="h-4 w-4 text-emerald-400" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                  {selectedUsers.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {selectedUsers.map((user) => (
-                        <Badge
-                          key={user.id}
-                          variant="outline"
-                          className="border-emerald-500/50 text-emerald-400 pr-1 flex items-center gap-1"
-                        >
-                          {user.email}
-                          <button
-                            onClick={() => removeUser(user.id)}
-                            className="ml-1 hover:text-red-400"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </button>
+
+                  {/* Quick Selection Buttons */}
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addAllSubscribers}
+                      disabled={loadingSubscribers || subscriberEmails.length > 0}
+                      className="bg-neutral-800/50 border-neutral-700/50 hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-400"
+                    >
+                      {loadingSubscribers ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Users className="h-4 w-4 mr-2" />
+                      )}
+                      {subscriberEmails.length > 0 ? `${subscriberEmails.length} Subscribers` : 'All Subscribers'}
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={addAllUsers}
+                      disabled={loadingAllUsers || bulkUserEmails.length > 0}
+                      className="bg-neutral-800/50 border-neutral-700/50 hover:bg-emerald-500/10 hover:border-emerald-500/30 hover:text-emerald-400"
+                    >
+                      {loadingAllUsers ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <UserPlus className="h-4 w-4 mr-2" />
+                      )}
+                      {bulkUserEmails.length > 0 ? `${bulkUserEmails.length} Users` : 'All Users'}
+                    </Button>
+                    {getTotalRecipientCount() > 0 && (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={clearAllRecipients}
+                        className="bg-neutral-800/50 border-neutral-700/50 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Clear All
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Status badges for bulk selections */}
+                  {(subscriberEmails.length > 0 || bulkUserEmails.length > 0) && (
+                    <div className="flex flex-wrap gap-2">
+                      {subscriberEmails.length > 0 && (
+                        <Badge variant="outline" className="border-purple-500/50 text-purple-400">
+                          <Users className="h-3 w-3 mr-1" />
+                          {subscriberEmails.length} newsletter subscribers
                         </Badge>
-                      ))}
+                      )}
+                      {bulkUserEmails.length > 0 && (
+                        <Badge variant="outline" className="border-blue-500/50 text-blue-400">
+                          <UserPlus className="h-3 w-3 mr-1" />
+                          {bulkUserEmails.length} users
+                        </Badge>
+                      )}
                     </div>
                   )}
+
+                  {/* Manual User Search */}
+                  <div className="space-y-2">
+                    <Label className="text-neutral-400 text-xs">Or search individual users</Label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-500" />
+                      <Input
+                        placeholder="Search users..."
+                        value={userSearch}
+                        onChange={(e) => setUserSearch(e.target.value)}
+                        className="pl-9 bg-neutral-900/80 border-neutral-800/50 text-white"
+                      />
+                    </div>
+                    {searchingUsers && <p className="text-xs text-neutral-500">Searching...</p>}
+                    {searchResults.length > 0 && (
+                      <div className="bg-neutral-800 rounded-lg border border-neutral-700 max-h-40 overflow-y-auto">
+                        {searchResults.map((user) => (
+                          <div
+                            key={user.id}
+                            className="p-2 hover:bg-neutral-700 cursor-pointer flex items-center justify-between"
+                            onClick={() => addUser(user)}
+                          >
+                            <div>
+                              <p className="text-sm text-white">{user.fullName}</p>
+                              <p className="text-xs text-neutral-400">{user.email}</p>
+                            </div>
+                            <Plus className="h-4 w-4 text-emerald-400" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {selectedUsers.length > 0 && (
+                      <div className="flex flex-wrap gap-2 mt-2">
+                        {selectedUsers.map((user) => (
+                          <Badge
+                            key={user.id}
+                            variant="outline"
+                            className="border-emerald-500/50 text-emerald-400 pr-1 flex items-center gap-1"
+                          >
+                            {user.email}
+                            <button
+                              onClick={() => removeUser(user.id)}
+                              className="ml-1 hover:text-red-400"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
 
                 {/* Manual Email Input */}
@@ -687,21 +835,21 @@ export default function MailingsPage() {
                         <tr key={item.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/30">
                           <td className="p-4 text-sm text-white">{item.recipientEmail}</td>
                           <td className="p-4 text-sm text-neutral-300 max-w-[200px] truncate">{item.subject}</td>
-                          <td className="p-4 text-sm text-neutral-400">{item.templateName || '-'}</td>
+                          <td className="p-4 text-sm text-neutral-400">{item.templateId ? 'Template' : '-'}</td>
                           <td className="p-4">
                             <Badge variant="outline" className={`text-xs ${statusColors[item.status.toLowerCase()] || ''}`}>
                               {item.status}
                             </Badge>
                           </td>
-                          <td className="p-4 text-sm text-neutral-400">{item.sentBy}</td>
+                          <td className="p-4 text-sm text-neutral-400">{item.sentByName || '-'}</td>
                           <td className="p-4 text-sm text-neutral-400">
-                            {new Date(item.createdAt).toLocaleDateString('en-US', {
+                            {item.sentAt ? new Date(item.sentAt).toLocaleDateString('en-US', {
                               month: 'short',
                               day: 'numeric',
                               year: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit',
-                            })}
+                            }) : '-'}
                           </td>
                         </tr>
                       ))

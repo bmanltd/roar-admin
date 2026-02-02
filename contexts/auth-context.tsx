@@ -17,6 +17,14 @@ interface AdminUser {
   createdAt: string;
 }
 
+interface TotpSetupResponse {
+  success: boolean;
+  secret?: string;
+  qrCodeUrl?: string;
+  otpauthUrl?: string;
+  error?: string;
+}
+
 interface AuthContextType {
   admin: AdminUser | null;
   isLoading: boolean;
@@ -26,6 +34,9 @@ interface AuthContextType {
   verify2FA: (adminId: string, code: string, method?: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  setupTotp: () => Promise<TotpSetupResponse>;
+  verifyTotpSetup: (code: string) => Promise<{ success: boolean; error?: string }>;
+  disableTotp: () => Promise<{ success: boolean; error?: string }>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -110,6 +121,60 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return rolePerms?.includes(permission) ?? false;
   };
 
+  const setupTotp = async (): Promise<TotpSetupResponse> => {
+    try {
+      const res = await fetch('/api/auth/totp/setup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json();
+      return data;
+    } catch {
+      return { success: false, error: 'Network error' };
+    }
+  };
+
+  const verifyTotpSetup = async (code: string) => {
+    try {
+      const res = await fetch('/api/auth/totp/verify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: code }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        // Refresh admin data to get updated twoFactorMethod
+        await refreshSession();
+      }
+
+      return data;
+    } catch {
+      return { success: false, error: 'Network error' };
+    }
+  };
+
+  const disableTotp = async () => {
+    try {
+      const res = await fetch('/api/auth/totp/disable', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        await refreshSession();
+      }
+
+      return data;
+    } catch {
+      return { success: false, error: 'Network error' };
+    }
+  };
+
   return (
     <AuthContext.Provider
       value={{
@@ -121,6 +186,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         verify2FA,
         logout,
         refreshSession,
+        setupTotp,
+        verifyTotpSetup,
+        disableTotp,
       }}
     >
       {children}

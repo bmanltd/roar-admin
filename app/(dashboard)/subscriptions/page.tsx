@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { toast } from 'sonner';
-import { CreditCard, ChevronLeft, ChevronRight, Calendar, Pause, Play, X, ArrowUpDown } from 'lucide-react';
+import { CreditCard, ChevronLeft, ChevronRight, Calendar, Pause, Play, X, ArrowUpDown, Plus, Search, Loader2 } from 'lucide-react';
 
 interface SubData {
   id: string;
@@ -42,6 +42,14 @@ interface TierData {
   _count: { subscriptions: number; productKeys: number };
 }
 
+interface UserSearchResult {
+  id: string;
+  email: string;
+  fullName: string;
+  companyName: string | null;
+  subscription: { status: string } | null;
+}
+
 export default function SubscriptionsPage() {
   const [subscriptions, setSubscriptions] = useState<SubData[]>([]);
   const [tiers, setTiers] = useState<TierData[]>([]);
@@ -53,6 +61,17 @@ export default function SubscriptionsPage() {
   const [showExtend, setShowExtend] = useState(false);
   const [selectedSub, setSelectedSub] = useState<SubData | null>(null);
   const [extendDays, setExtendDays] = useState('30');
+
+  // Create subscription state
+  const [showCreate, setShowCreate] = useState(false);
+  const [userSearch, setUserSearch] = useState('');
+  const [userResults, setUserResults] = useState<UserSearchResult[]>([]);
+  const [selectedUser, setSelectedUser] = useState<UserSearchResult | null>(null);
+  const [selectedTier, setSelectedTier] = useState('');
+  const [billingCycle, setBillingCycle] = useState<'MONTHLY' | 'YEARLY'>('MONTHLY');
+  const [validityDays, setValidityDays] = useState('');
+  const [isSearching, setIsSearching] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
   const fetchSubscriptions = useCallback(async () => {
     setIsLoading(true);
@@ -97,6 +116,79 @@ export default function SubscriptionsPage() {
     } catch { toast.error('Action failed'); }
   };
 
+  // Search users for subscription creation
+  const searchUsers = async (query: string) => {
+    if (!query || query.length < 2) {
+      setUserResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const res = await fetch(`/api/users?search=${encodeURIComponent(query)}&limit=10`);
+      const data = await res.json();
+      if (data.success) {
+        // Show all matching users - API will validate subscription status
+        setUserResults(data.data);
+      }
+    } catch {
+      console.error('Failed to search users');
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (userSearch) searchUsers(userSearch);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [userSearch]);
+
+  const handleCreateSubscription = async () => {
+    if (!selectedUser || !selectedTier) {
+      toast.error('Please select a user and tier');
+      return;
+    }
+
+    setIsCreating(true);
+    try {
+      const res = await fetch('/api/subscriptions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: selectedUser.id,
+          tierId: selectedTier,
+          billingCycle,
+          validityDays: validityDays ? parseInt(validityDays) : undefined,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast.success('Subscription created successfully');
+        setShowCreate(false);
+        resetCreateForm();
+        fetchSubscriptions();
+      } else {
+        toast.error(data.error || 'Failed to create subscription');
+      }
+    } catch {
+      toast.error('Failed to create subscription');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
+  const resetCreateForm = () => {
+    setUserSearch('');
+    setUserResults([]);
+    setSelectedUser(null);
+    setSelectedTier('');
+    setBillingCycle('MONTHLY');
+    setValidityDays('');
+  };
+
   const statusColors: Record<string, string> = {
     ACTIVE: 'bg-green-500/10 text-green-400 border-green-500/30',
     PENDING: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
@@ -119,7 +211,7 @@ export default function SubscriptionsPage() {
         </TabsList>
 
         <TabsContent value="subscriptions" className="mt-4">
-          <div className="flex gap-3 mb-4">
+          <div className="flex items-center justify-between gap-3 mb-4">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
               <SelectTrigger className="w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white">
                 <SelectValue placeholder="Status" />
@@ -133,6 +225,10 @@ export default function SubscriptionsPage() {
                 <SelectItem value="CANCELLED">Cancelled</SelectItem>
               </SelectContent>
             </Select>
+            <Button onClick={() => setShowCreate(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+              <Plus className="h-4 w-4 mr-2" />
+              Create Subscription
+            </Button>
           </div>
 
           <Card className="bg-neutral-900/80 border-neutral-800/50">
@@ -260,6 +356,163 @@ export default function SubscriptionsPage() {
                   handleAction(selectedSub.id, 'extend', { expiresAt: newExpiry.toISOString() });
                 }
               }} className="bg-emerald-600 hover:bg-emerald-700">Extend</Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Create Subscription Dialog */}
+      <Dialog open={showCreate} onOpenChange={(open) => { setShowCreate(open); if (!open) resetCreateForm(); }}>
+        <DialogContent className="bg-neutral-900/95 border-neutral-800/50 text-white max-w-md overflow-visible">
+          <DialogHeader>
+            <DialogTitle>Create Subscription</DialogTitle>
+            <DialogDescription className="text-neutral-400">
+              Create a new subscription for a user
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            {/* User Search */}
+            <div className="space-y-2">
+              <Label className="text-neutral-300">Search User</Label>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500" />
+                <Input
+                  placeholder="Search by email or name..."
+                  value={userSearch}
+                  onChange={(e) => setUserSearch(e.target.value)}
+                  className="pl-10 bg-neutral-800 border-neutral-700 text-white"
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-neutral-500 animate-spin" />
+                )}
+
+                {/* Search Results Dropdown - inside relative container */}
+                {userResults.length > 0 && !selectedUser && (
+                  <div className="absolute left-0 right-0 top-full mt-1 z-50 bg-neutral-800 border border-neutral-700 rounded-lg shadow-xl max-h-48 overflow-y-auto">
+                    {userResults.map((user) => (
+                      <button
+                        key={user.id}
+                        onClick={() => {
+                          setSelectedUser(user);
+                          setUserSearch('');
+                          setUserResults([]);
+                        }}
+                        className="w-full px-3 py-2 text-left hover:bg-neutral-700 transition-colors"
+                      >
+                        <p className="text-sm font-medium text-white">{user.fullName}</p>
+                        <p className="text-xs text-neutral-400">
+                          {user.email}
+                          {user.subscription ? (
+                            <span className={`ml-2 ${user.subscription.status === 'ACTIVE' ? 'text-green-400' : 'text-yellow-400'}`}>
+                              ({user.subscription.status})
+                            </span>
+                          ) : (
+                            <span className="ml-2 text-neutral-500">(No subscription)</span>
+                          )}
+                        </p>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Selected User */}
+              {selectedUser && (
+                <div className="flex items-center justify-between p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+                  <div>
+                    <p className="text-sm font-medium text-white">{selectedUser.fullName}</p>
+                    <p className="text-xs text-neutral-400">{selectedUser.email}</p>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={() => setSelectedUser(null)}
+                    className="h-8 w-8 text-neutral-400 hover:text-red-400"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {/* Tier Selection */}
+            <div className="space-y-2">
+              <Label className="text-neutral-300">Subscription Tier</Label>
+              <Select value={selectedTier} onValueChange={setSelectedTier}>
+                <SelectTrigger className="bg-neutral-800 border-neutral-700 text-white">
+                  <SelectValue placeholder="Select a tier" />
+                </SelectTrigger>
+                <SelectContent className="bg-neutral-800 border-neutral-700">
+                  {tiers.map((tier) => (
+                    <SelectItem key={tier.id} value={tier.id}>
+                      {tier.displayName} - {billingCycle === 'YEARLY' ? tier.priceYearly.toLocaleString() : tier.priceMonthly.toLocaleString()} RWF/{billingCycle === 'YEARLY' ? 'yr' : 'mo'}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* Billing Cycle */}
+            <div className="space-y-2">
+              <Label className="text-neutral-300">Billing Cycle</Label>
+              <div className="flex gap-3">
+                <Button
+                  type="button"
+                  variant={billingCycle === 'MONTHLY' ? 'default' : 'outline'}
+                  onClick={() => setBillingCycle('MONTHLY')}
+                  className={billingCycle === 'MONTHLY' ? 'bg-emerald-600 hover:bg-emerald-700' : 'border-neutral-700 text-neutral-300'}
+                >
+                  Monthly (30 days)
+                </Button>
+                <Button
+                  type="button"
+                  variant={billingCycle === 'YEARLY' ? 'default' : 'outline'}
+                  onClick={() => setBillingCycle('YEARLY')}
+                  className={billingCycle === 'YEARLY' ? 'bg-emerald-600 hover:bg-emerald-700' : 'border-neutral-700 text-neutral-300'}
+                >
+                  Yearly (365 days)
+                </Button>
+              </div>
+            </div>
+
+            {/* Validity Days Override */}
+            <div className="space-y-2">
+              <Label className="text-neutral-300">
+                Custom Validity (days)
+                <span className="text-neutral-500 text-xs ml-2">Optional</span>
+              </Label>
+              <Input
+                type="number"
+                placeholder={billingCycle === 'YEARLY' ? '365' : '30'}
+                value={validityDays}
+                onChange={(e) => setValidityDays(e.target.value)}
+                className="bg-neutral-800 border-neutral-700 text-white"
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex gap-2 justify-end pt-2">
+              <Button
+                variant="outline"
+                onClick={() => { setShowCreate(false); resetCreateForm(); }}
+                className="border-neutral-700 text-neutral-300"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleCreateSubscription}
+                disabled={!selectedUser || !selectedTier || isCreating}
+                className="bg-emerald-600 hover:bg-emerald-700"
+              >
+                {isCreating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    Creating...
+                  </>
+                ) : (
+                  'Create Subscription'
+                )}
+              </Button>
             </div>
           </div>
         </DialogContent>

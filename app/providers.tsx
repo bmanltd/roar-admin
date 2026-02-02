@@ -10,7 +10,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <AuthProvider>
         {children}
         <Toaster
-          position="top-right"
+          position="bottom-center"
           richColors
           closeButton
           theme="dark"

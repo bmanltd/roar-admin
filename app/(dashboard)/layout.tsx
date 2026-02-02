@@ -56,7 +56,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <Sidebar isCollapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
         <div
           className="min-h-screen flex flex-col transition-all duration-300"
-          style={{ marginLeft: sidebarCollapsed ? 68 : 256 }}
+          style={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
         >
           <Topbar />
           <main className="flex-1 p-6">
