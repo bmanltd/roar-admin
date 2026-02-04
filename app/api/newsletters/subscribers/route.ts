@@ -15,7 +15,7 @@ export async function GET(request: Request) {
       const subscribers = await prisma.newsletterSubscriber.findMany({
         where: { isActive: true },
         select: { id: true, email: true },
-        orderBy: { subscribedAt: 'desc' },
+        orderBy: { subscribedAt: 'desc' }, 
       });
       return NextResponse.json({ success: true, data: subscribers });
     }
