@@ -12,13 +12,13 @@ import {
   LayoutDashboard, Users, CreditCard, Key, Monitor, Building2,
   BarChart3, ToggleLeft, Package, Newspaper, Mail, Send,
   MessageSquare, Shield, Activity, Settings, ChevronLeft,
-  ChevronRight, LogOut, Wallet, Sparkles, KeyRound,
+  ChevronRight, LogOut, Wallet, Sparkles, KeyRound, ClipboardCheck,
 } from 'lucide-react';
 
 const iconMap: Record<string, React.ElementType> = {
   LayoutDashboard, Users, CreditCard, Key, Monitor, Building2,
   BarChart3, ToggleLeft, Package, Newspaper, Mail, Send,
-  MessageSquare, Shield, Activity, Settings, Wallet, KeyRound,
+  MessageSquare, Shield, Activity, Settings, Wallet, KeyRound, ClipboardCheck,
 };
 
 interface NavItem {
@@ -76,6 +76,7 @@ const NAV_SECTIONS: NavSection[] = [
   {
     title: 'System',
     items: [
+      { label: 'Approvals', href: '/approvals', icon: 'ClipboardCheck', permission: 'approvals.read' },
       { label: 'Admin Users', href: '/admin-users', icon: 'Shield', permission: 'admin_users.read' },
       { label: 'Activity Log', href: '/activity', icon: 'Activity', permission: 'activity.read' },
       { label: 'Settings', href: '/settings', icon: 'Settings', permission: 'settings.read' },

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission, logAdminAction } from '@/lib/auth/admin-guard';
 import prisma from '@/lib/prisma';
+import { createApprovalRequest } from '@/lib/approval';
 
 export async function GET(
   request: Request,
@@ -61,7 +62,7 @@ export async function PATCH(
       return NextResponse.json({ success: false, error: 'Tier not found' }, { status: 404 });
     }
 
-    const updateData: any = {};
+    const updateData: Record<string, unknown> = {};
     if (displayName !== undefined) updateData.displayName = displayName;
     if (priceMonthly !== undefined) updateData.priceMonthly = priceMonthly;
     if (priceYearly !== undefined) updateData.priceYearly = priceYearly;
@@ -74,6 +75,25 @@ export async function PATCH(
     if (userManagement !== undefined) updateData.userManagement = userManagement;
     if (accessLevels !== undefined) updateData.accessLevels = accessLevels;
     if (prioritySupport !== undefined) updateData.prioritySupport = prioritySupport;
+
+    // Check if approval is required
+    const approvalResult = await createApprovalRequest({
+      actionType: 'TIER_UPDATE',
+      resourceType: 'subscription_tier',
+      resourceId: id,
+      payload: updateData,
+      session: result.session,
+      request,
+    });
+
+    if (approvalResult.requiresApproval) {
+      return NextResponse.json({
+        success: true,
+        requiresApproval: true,
+        approvalRequest: approvalResult.approvalRequest,
+        message: 'Your request has been submitted for approval',
+      });
+    }
 
     const updatedTier = await prisma.subscriptionTier.update({
       where: { id },
@@ -114,6 +134,25 @@ export async function DELETE(
         success: false,
         error: `Cannot delete tier with ${tier._count.subscriptions} active subscription(s)`,
       }, { status: 400 });
+    }
+
+    // Check if approval is required
+    const approvalResult = await createApprovalRequest({
+      actionType: 'TIER_DELETE',
+      resourceType: 'subscription_tier',
+      resourceId: id,
+      payload: { name: tier.name },
+      session: result.session,
+      request,
+    });
+
+    if (approvalResult.requiresApproval) {
+      return NextResponse.json({
+        success: true,
+        requiresApproval: true,
+        approvalRequest: approvalResult.approvalRequest,
+        message: 'Your request has been submitted for approval',
+      });
     }
 
     await prisma.subscriptionTier.delete({ where: { id } });

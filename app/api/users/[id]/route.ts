@@ -3,6 +3,7 @@ import { requirePermission, logAdminAction } from '@/lib/auth/admin-guard';
 import prisma from '@/lib/prisma';
 import { generateResetToken, getResetTokenExpiry } from '@/lib/auth/password';
 import { sendPasswordResetEmail } from '@/lib/email/brevo';
+import { createApprovalRequest } from '@/lib/approval';
 
 export async function GET(
   request: Request,
@@ -62,6 +63,25 @@ export async function PATCH(
 
     // Suspend user
     if (action === 'suspend') {
+      // Check if approval is required
+      const approvalResult = await createApprovalRequest({
+        actionType: 'USER_SUSPEND',
+        resourceType: 'user',
+        resourceId: id,
+        payload: { action: 'suspend' },
+        session: result.session,
+        request,
+      });
+
+      if (approvalResult.requiresApproval) {
+        return NextResponse.json({
+          success: true,
+          requiresApproval: true,
+          approvalRequest: approvalResult.approvalRequest,
+          message: 'Your request has been submitted for approval',
+        });
+      }
+
       await prisma.user.update({
         where: { id },
         data: { isActive: false },
@@ -144,6 +164,25 @@ export async function DELETE(
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
+    }
+
+    // Check if approval is required
+    const approvalResult = await createApprovalRequest({
+      actionType: 'USER_DELETE',
+      resourceType: 'user',
+      resourceId: id,
+      payload: { userId: id, email: user.email },
+      session: result.session,
+      request,
+    });
+
+    if (approvalResult.requiresApproval) {
+      return NextResponse.json({
+        success: true,
+        requiresApproval: true,
+        approvalRequest: approvalResult.approvalRequest,
+        message: 'Your request has been submitted for approval',
+      });
     }
 
     // Soft delete - just deactivate and anonymize
