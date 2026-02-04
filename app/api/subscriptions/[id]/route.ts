@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { requirePermission, logAdminAction } from '@/lib/auth/admin-guard';
 import prisma from '@/lib/prisma';
+import { createApprovalRequest } from '@/lib/approval';
+import type { ApprovalActionType } from '@prisma/client';
 
 export async function GET(
   request: Request,
@@ -44,6 +46,35 @@ export async function PATCH(
     const body = await request.json();
     const { action, expiresAt, tierId } = body;
 
+    // Map actions to approval action types (actions requiring approval)
+    const approvalActionMap: Record<string, ApprovalActionType> = {
+      extend: 'SUBSCRIPTION_EXTEND',
+      suspend: 'SUBSCRIPTION_SUSPEND',
+      cancel: 'SUBSCRIPTION_CANCEL',
+      change_tier: 'SUBSCRIPTION_CHANGE_TIER',
+    };
+
+    // Check if this action requires approval
+    if (approvalActionMap[action]) {
+      const approvalResult = await createApprovalRequest({
+        actionType: approvalActionMap[action],
+        resourceType: 'subscription',
+        resourceId: id,
+        payload: { action, expiresAt, tierId },
+        session: result.session,
+        request,
+      });
+
+      if (approvalResult.requiresApproval) {
+        return NextResponse.json({
+          success: true,
+          requiresApproval: true,
+          approvalRequest: approvalResult.approvalRequest,
+          message: 'Your request has been submitted for approval',
+        });
+      }
+    }
+
     if (action === 'extend' && expiresAt) {
       const subscription = await prisma.subscription.update({
         where: { id },
@@ -63,6 +94,7 @@ export async function PATCH(
     }
 
     if (action === 'activate') {
+      // Activate doesn't require approval - it's restoring access
       const subscription = await prisma.subscription.update({
         where: { id },
         data: { status: 'ACTIVE' },

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission, logAdminAction } from '@/lib/auth/admin-guard';
 import prisma from '@/lib/prisma';
+import { createApprovalRequest } from '@/lib/approval';
 
 export async function GET(request: Request) {
   const result = await requirePermission(request, 'subscriptions.read');
@@ -31,6 +32,25 @@ export async function PATCH(request: Request) {
 
     if (!tierId) {
       return NextResponse.json({ success: false, error: 'Tier ID is required' }, { status: 400 });
+    }
+
+    // Check if approval is required
+    const approvalResult = await createApprovalRequest({
+      actionType: 'TIER_UPDATE',
+      resourceType: 'subscription_tier',
+      resourceId: tierId,
+      payload: updates,
+      session: result.session,
+      request,
+    });
+
+    if (approvalResult.requiresApproval) {
+      return NextResponse.json({
+        success: true,
+        requiresApproval: true,
+        approvalRequest: approvalResult.approvalRequest,
+        message: 'Your request has been submitted for approval',
+      });
     }
 
     const tier = await prisma.subscriptionTier.update({
@@ -80,6 +100,38 @@ export async function POST(request: Request) {
     const existing = await prisma.subscriptionTier.findUnique({ where: { name } });
     if (existing) {
       return NextResponse.json({ success: false, error: 'Tier with this name already exists' }, { status: 400 });
+    }
+
+    // Check if approval is required
+    const approvalResult = await createApprovalRequest({
+      actionType: 'TIER_CREATE',
+      resourceType: 'subscription_tier',
+      payload: {
+        name,
+        displayName,
+        priceMonthly,
+        priceYearly,
+        maxDevices,
+        maxProducts,
+        maxUsers,
+        offlineMode,
+        cloudSync,
+        backupEnabled,
+        userManagement,
+        accessLevels,
+        prioritySupport,
+      },
+      session: result.session,
+      request,
+    });
+
+    if (approvalResult.requiresApproval) {
+      return NextResponse.json({
+        success: true,
+        requiresApproval: true,
+        approvalRequest: approvalResult.approvalRequest,
+        message: 'Your request has been submitted for approval',
+      });
     }
 
     const tier = await prisma.subscriptionTier.create({

@@ -777,6 +777,11 @@ model AdminUser {
   sessions         AdminSession[]
   auditLogs        AdminAuditLog[]
 
+  // Approval workflow relations
+  approvalRequestsMade      ApprovalRequest[] @relation("ApprovalRequester")
+  approvalRequestsReviewed  ApprovalRequest[] @relation("ApprovalReviewer")
+  approvalRequestsCancelled ApprovalRequest[] @relation("ApprovalCanceller")
+
   @@map("admin_users")
 }
 
@@ -836,6 +841,73 @@ model AdminTwoFactorCode {
   @@map("admin_two_factor_codes")
 }
 
+// ==================== APPROVAL WORKFLOW ====================
+
+model ApprovalRequest {
+  id              String              @id @default(uuid())
+  actionType      ApprovalActionType  @map("action_type")
+  resourceType    String              @map("resource_type")
+  resourceId      String?             @map("resource_id")
+  payload         Json
+  requesterId     String              @map("requester_id")
+  requesterNote   String?             @map("requester_note")
+  status          ApprovalStatus      @default(PENDING)
+  reviewerId      String?             @map("reviewer_id")
+  reviewerNote    String?             @map("reviewer_note")
+  reviewedAt      DateTime?           @map("reviewed_at")
+  executionResult Json?               @map("execution_result")
+  executedAt      DateTime?           @map("executed_at")
+  executionError  String?             @map("execution_error")
+  priority        ApprovalPriority    @default(NORMAL)
+  expiresAt       DateTime?           @map("expires_at")
+  cancelledAt     DateTime?           @map("cancelled_at")
+  cancelledById   String?             @map("cancelled_by_id")
+  createdAt       DateTime            @default(now()) @map("created_at")
+  updatedAt       DateTime            @updatedAt @map("updated_at")
+
+  requester       AdminUser           @relation("ApprovalRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  reviewer        AdminUser?          @relation("ApprovalReviewer", fields: [reviewerId], references: [id], onDelete: SetNull)
+  cancelledBy     AdminUser?          @relation("ApprovalCanceller", fields: [cancelledById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([actionType])
+  @@index([createdAt])
+  @@map("approval_requests")
+}
+
+enum ApprovalActionType {
+  PAYMENT_CREATE
+  SUBSCRIPTION_EXTEND
+  SUBSCRIPTION_SUSPEND
+  SUBSCRIPTION_CANCEL
+  SUBSCRIPTION_CHANGE_TIER
+  TIER_CREATE
+  TIER_UPDATE
+  TIER_DELETE
+  USER_SUSPEND
+  USER_DELETE
+  ADMIN_ROLE_CHANGE
+  ADMIN_DEACTIVATE
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  EXPIRED
+  CANCELLED
+  EXECUTED
+  FAILED
+}
+
+enum ApprovalPriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
 // ==================== FEATURE FLAGS ====================
 
 model GlobalFeatureFlag {
@@ -872,7 +944,7 @@ model FeatureFlagOverride {
 
 model AppVersion {
   id            String    @id @default(uuid())
-  version       String    @unique
+  version       String
   platform      String
   channel       String    @default("stable")
   releaseNotes  String?   @map("release_notes")
@@ -886,6 +958,7 @@ model AppVersion {
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
+  @@unique([version, platform, channel])
   @@map("app_versions")
 }
 

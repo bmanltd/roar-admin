@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { requirePermission, logAdminAction } from '@/lib/auth/admin-guard';
 import prisma from '@/lib/prisma';
+import { createApprovalRequest } from '@/lib/approval';
 
 // Role hierarchy for permission checks
 const ROLE_HIERARCHY: Record<string, number> = {
@@ -107,6 +108,27 @@ export async function PATCH(
     if (isActive !== undefined) updateData.isActive = isActive;
     if (twoFactorEnabled !== undefined) updateData.twoFactorEnabled = twoFactorEnabled;
 
+    // Check if approval is required for role changes
+    if (role !== undefined && role !== adminUser.role) {
+      const approvalResult = await createApprovalRequest({
+        actionType: 'ADMIN_ROLE_CHANGE',
+        resourceType: 'admin_user',
+        resourceId: id,
+        payload: updateData,
+        session: result.session,
+        request,
+      });
+
+      if (approvalResult.requiresApproval) {
+        return NextResponse.json({
+          success: true,
+          requiresApproval: true,
+          approvalRequest: approvalResult.approvalRequest,
+          message: 'Your request has been submitted for approval',
+        });
+      }
+    }
+
     const updatedAdmin = await prisma.adminUser.update({
       where: { id },
       data: updateData,
@@ -159,6 +181,25 @@ export async function DELETE(
         { success: false, error: 'Cannot deactivate your own account' },
         { status: 400 }
       );
+    }
+
+    // Check if approval is required
+    const approvalResult = await createApprovalRequest({
+      actionType: 'ADMIN_DEACTIVATE',
+      resourceType: 'admin_user',
+      resourceId: id,
+      payload: { email: adminUser.email },
+      session: result.session,
+      request,
+    });
+
+    if (approvalResult.requiresApproval) {
+      return NextResponse.json({
+        success: true,
+        requiresApproval: true,
+        approvalRequest: approvalResult.approvalRequest,
+        message: 'Your request has been submitted for approval',
+      });
     }
 
     // Soft delete: set isActive to false instead of deleting
