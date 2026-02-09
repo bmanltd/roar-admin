@@ -284,20 +284,20 @@ export default function UsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Users</h1>
           <p className="text-neutral-400 text-sm mt-1">{total} total users</p>
         </div>
-        <Button onClick={openCreateDialog} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+        <Button onClick={openCreateDialog} className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" />
           Create User
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[250px]">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3">
+        <div className="relative flex-1 min-w-0">
           <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-500" />
           <Input
             placeholder="Search by email, name, or company..."
@@ -307,7 +307,7 @@ export default function UsersPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[140px] bg-neutral-900 border-neutral-800 text-white">
+          <SelectTrigger className="w-full sm:w-[140px] bg-neutral-900 border-neutral-800 text-white">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent className="bg-neutral-900 border-neutral-800">
@@ -317,7 +317,7 @@ export default function UsersPage() {
           </SelectContent>
         </Select>
         <Select value={tierFilter} onValueChange={(v) => { setTierFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[140px] bg-neutral-900 border-neutral-800 text-white">
+          <SelectTrigger className="w-full sm:w-[140px] bg-neutral-900 border-neutral-800 text-white">
             <SelectValue placeholder="Tier" />
           </SelectTrigger>
           <SelectContent className="bg-neutral-900 border-neutral-800">
@@ -337,11 +337,11 @@ export default function UsersPage() {
               <thead>
                 <tr className="border-b border-neutral-800">
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">User</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Company</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Tier</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Company</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Tier</th>
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Devices</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Joined</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Devices</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Joined</th>
                   <th className="text-right p-4 text-sm font-medium text-neutral-400">Actions</th>
                 </tr>
               </thead>
@@ -365,8 +365,8 @@ export default function UsersPage() {
                           <p className="text-xs text-neutral-500">{user.email}</p>
                         </div>
                       </td>
-                      <td className="p-4 text-sm text-neutral-300">{user.companyName || '-'}</td>
-                      <td className="p-4">
+                      <td className="p-4 text-sm text-neutral-300 hidden md:table-cell">{user.companyName || '-'}</td>
+                      <td className="p-4 hidden md:table-cell">
                         {user.subscription ? (
                           <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-xs">
                             {user.subscription.tier.displayName}
@@ -380,8 +380,8 @@ export default function UsersPage() {
                           {user.isActive ? 'Active' : 'Suspended'}
                         </Badge>
                       </td>
-                      <td className="p-4 text-sm text-neutral-300">{user._count.devices}</td>
-                      <td className="p-4 text-sm text-neutral-400">
+                      <td className="p-4 text-sm text-neutral-300 hidden md:table-cell">{user._count.devices}</td>
+                      <td className="p-4 text-sm text-neutral-400 hidden md:table-cell">
                         {new Date(user.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                       <td className="p-4 text-right">

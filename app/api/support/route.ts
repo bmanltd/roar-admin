@@ -10,11 +10,19 @@ export async function GET(request: Request) {
     const page = parseInt(searchParams.get('page') || '1');
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 100);
     const status = searchParams.get('status');
-    const where: any = {};
+    const where: Record<string, unknown> = {};
     if (status) where.status = status;
     const [tickets, total] = await Promise.all([
-      prisma.feedback.findMany({ where, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
-      prisma.feedback.count({ where }),
+      prisma.supportTicket.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip: (page - 1) * limit,
+        take: limit,
+        include: {
+          responses: { orderBy: { createdAt: 'desc' }, take: 1 },
+        },
+      }),
+      prisma.supportTicket.count({ where }),
     ]);
     return NextResponse.json({ success: true, data: tickets, pagination: { page, limit, total, totalPages: Math.ceil(total / limit) } });
   } catch { return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 }); }

@@ -68,9 +68,9 @@ export default function DevicesPage() {
         <p className="text-neutral-400 text-sm mt-1">{total} registered devices</p>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row gap-3">
         <Select value={platformFilter} onValueChange={(v) => { setPlatformFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Platform" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Platform" /></SelectTrigger>
           <SelectContent className="bg-neutral-900/80 border-neutral-800/50">
             <SelectItem value="all">All Platforms</SelectItem>
             <SelectItem value="windows">Windows</SelectItem>
@@ -79,7 +79,7 @@ export default function DevicesPage() {
           </SelectContent>
         </Select>
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent className="bg-neutral-900/80 border-neutral-800/50">
             <SelectItem value="all">All Status</SelectItem>
             <SelectItem value="active">Active</SelectItem>
@@ -95,9 +95,9 @@ export default function DevicesPage() {
               <thead>
                 <tr className="border-b border-neutral-800">
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Device</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">User</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Platform</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Tier</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">User</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Platform</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Tier</th>
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Last Seen</th>
                 </tr>
@@ -119,12 +119,12 @@ export default function DevicesPage() {
                           </div>
                         </div>
                       </td>
-                      <td className="p-4">
+                      <td className="p-4 hidden md:table-cell">
                         <p className="text-sm text-white">{d.user.fullName}</p>
                         <p className="text-xs text-neutral-500">{d.user.email}</p>
                       </td>
-                      <td className="p-4 text-sm text-neutral-300 capitalize">{d.platform || 'Unknown'}</td>
-                      <td className="p-4"><Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-400">{d.tier}</Badge></td>
+                      <td className="p-4 text-sm text-neutral-300 capitalize hidden md:table-cell">{d.platform || 'Unknown'}</td>
+                      <td className="p-4 hidden md:table-cell"><Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-400">{d.tier}</Badge></td>
                       <td className="p-4">
                         <Badge variant="outline" className={`text-xs ${d.isActive ? 'text-green-400 border-green-500/30' : 'text-red-400 border-red-500/30'}`}>
                           {d.isActive ? 'Active' : 'Inactive'}

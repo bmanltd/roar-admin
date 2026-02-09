@@ -23,14 +23,16 @@ interface TicketResponse {
 
 interface TicketData {
   id: string;
-  email: string | null;
+  ticketNumber: string;
+  email: string;
+  name: string | null;
   userId: string | null;
-  type: string;
+  category: string;
+  priority: string;
   subject: string;
   message: string;
   status: string;
   createdAt: string;
-  ticketNumber?: string;
   responses?: TicketResponse[];
 }
 
@@ -135,16 +137,17 @@ export default function SupportPage() {
     }
   };
 
-  const typeColors: Record<string, string> = { BUG: 'text-red-400 border-red-500/30', FEATURE: 'text-emerald-400 border-emerald-500/30', GENERAL: 'text-neutral-400 border-neutral-500/30', SUPPORT: 'text-yellow-400 border-yellow-500/30' };
-  const statusColors: Record<string, string> = { NEW: 'text-emerald-400 border-emerald-500/30', OPEN: 'text-emerald-400 border-emerald-500/30', IN_PROGRESS: 'text-yellow-400 border-yellow-500/30', RESOLVED: 'text-green-400 border-green-500/30', CLOSED: 'text-neutral-400 border-neutral-500/30' };
+  const categoryColors: Record<string, string> = { BILLING: 'text-amber-400 border-amber-500/30', TECHNICAL: 'text-blue-400 border-blue-500/30', ACCOUNT: 'text-purple-400 border-purple-500/30', FEATURE_REQUEST: 'text-emerald-400 border-emerald-500/30', OTHER: 'text-neutral-400 border-neutral-500/30' };
+  const statusColors: Record<string, string> = { OPEN: 'text-emerald-400 border-emerald-500/30', IN_PROGRESS: 'text-yellow-400 border-yellow-500/30', WAITING_ON_CUSTOMER: 'text-orange-400 border-orange-500/30', RESOLVED: 'text-green-400 border-green-500/30', CLOSED: 'text-neutral-400 border-neutral-500/30' };
+  const priorityColors: Record<string, string> = { LOW: 'text-neutral-400 border-neutral-500/30', MEDIUM: 'text-blue-400 border-blue-500/30', HIGH: 'text-orange-400 border-orange-500/30', URGENT: 'text-red-400 border-red-500/30' };
 
   return (
     <div className="space-y-6">
       <div><h1 className="text-2xl font-bold text-white">Support Tickets</h1><p className="text-neutral-400 text-sm mt-1">{total} tickets</p></div>
       <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-        <SelectTrigger className="w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Status" /></SelectTrigger>
+        <SelectTrigger className="w-full sm:w-[180px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Status" /></SelectTrigger>
         <SelectContent className="bg-neutral-900/80 border-neutral-800/50">
-          <SelectItem value="all">All Status</SelectItem><SelectItem value="NEW">New</SelectItem><SelectItem value="OPEN">Open</SelectItem><SelectItem value="IN_PROGRESS">In Progress</SelectItem><SelectItem value="RESOLVED">Resolved</SelectItem><SelectItem value="CLOSED">Closed</SelectItem>
+          <SelectItem value="all">All Status</SelectItem><SelectItem value="OPEN">Open</SelectItem><SelectItem value="IN_PROGRESS">In Progress</SelectItem><SelectItem value="WAITING_ON_CUSTOMER">Waiting on Customer</SelectItem><SelectItem value="RESOLVED">Resolved</SelectItem><SelectItem value="CLOSED">Closed</SelectItem>
         </SelectContent>
       </Select>
       <div className="space-y-3">
@@ -154,21 +157,23 @@ export default function SupportPage() {
               <div className="flex items-start justify-between">
                 <div className="space-y-1 flex-1">
                   <div className="flex items-center gap-2">
+                    <span className="text-xs text-neutral-500 font-mono">#{t.ticketNumber}</span>
                     <p className="text-sm font-medium text-white">{t.subject}</p>
-                    <Badge variant="outline" className={`text-xs ${typeColors[t.type] || ''}`}>{t.type}</Badge>
-                    <Badge variant="outline" className={`text-xs ${statusColors[t.status] || ''}`}>{t.status.replace('_', ' ')}</Badge>
+                    <Badge variant="outline" className={`text-xs ${categoryColors[t.category] || ''}`}>{t.category.replace('_', ' ')}</Badge>
+                    <Badge variant="outline" className={`text-xs ${statusColors[t.status] || ''}`}>{t.status.replace(/_/g, ' ')}</Badge>
+                    <Badge variant="outline" className={`text-xs ${priorityColors[t.priority] || ''}`}>{t.priority}</Badge>
                   </div>
                   <p className="text-xs text-neutral-400 line-clamp-2">{t.message}</p>
-                  <p className="text-xs text-neutral-500">{t.email || 'Anonymous'} | {new Date(t.createdAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-neutral-500">{t.name ? `${t.name} (${t.email})` : t.email || 'Anonymous'} | {new Date(t.createdAt).toLocaleDateString()}</p>
                 </div>
                 <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                   <Button variant="ghost" size="sm" onClick={() => openTicketDialog(t)} className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
                     <Eye className="h-4 w-4" />
                   </Button>
                   <Select value={t.status} onValueChange={(v) => updateStatus(t.id, v)}>
-                    <SelectTrigger className="w-[130px] bg-neutral-800 border-neutral-700 text-white text-xs h-8"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="w-full sm:w-[150px] bg-neutral-800 border-neutral-700 text-white text-xs h-8"><SelectValue /></SelectTrigger>
                     <SelectContent className="bg-neutral-800 border-neutral-700">
-                      <SelectItem value="NEW">New</SelectItem><SelectItem value="OPEN">Open</SelectItem><SelectItem value="IN_PROGRESS">In Progress</SelectItem><SelectItem value="RESOLVED">Resolved</SelectItem><SelectItem value="CLOSED">Closed</SelectItem>
+                      <SelectItem value="OPEN">Open</SelectItem><SelectItem value="IN_PROGRESS">In Progress</SelectItem><SelectItem value="WAITING_ON_CUSTOMER">Waiting on Customer</SelectItem><SelectItem value="RESOLVED">Resolved</SelectItem><SelectItem value="CLOSED">Closed</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -196,8 +201,9 @@ export default function SupportPage() {
               {selectedTicket?.subject || 'Loading...'}
             </DialogTitle>
             <DialogDescription className="text-neutral-400">
-              {selectedTicket?.ticketNumber && `Ticket #${selectedTicket.ticketNumber} | `}
-              {selectedTicket?.email || 'Anonymous'} | {selectedTicket && new Date(selectedTicket.createdAt).toLocaleString()}
+              {selectedTicket?.ticketNumber && <span className="font-mono text-emerald-400">#{selectedTicket.ticketNumber}</span>}
+              {selectedTicket?.ticketNumber && ' | '}
+              {selectedTicket?.name ? `${selectedTicket.name} (${selectedTicket.email})` : selectedTicket?.email || 'Anonymous'} | {selectedTicket && new Date(selectedTicket.createdAt).toLocaleString()}
             </DialogDescription>
           </DialogHeader>
 
@@ -211,10 +217,11 @@ export default function SupportPage() {
               {/* Ticket Info */}
               <div className="bg-neutral-800/50 rounded-lg p-4 space-y-2">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Badge variant="outline" className={`text-xs ${typeColors[selectedTicket.type] || ''}`}>{selectedTicket.type}</Badge>
-                  <Badge variant="outline" className={`text-xs ${statusColors[selectedTicket.status] || ''}`}>{selectedTicket.status.replace('_', ' ')}</Badge>
+                  <Badge variant="outline" className={`text-xs ${categoryColors[selectedTicket.category] || ''}`}>{selectedTicket.category.replace('_', ' ')}</Badge>
+                  <Badge variant="outline" className={`text-xs ${statusColors[selectedTicket.status] || ''}`}>{selectedTicket.status.replace(/_/g, ' ')}</Badge>
+                  <Badge variant="outline" className={`text-xs ${priorityColors[selectedTicket.priority] || ''}`}>{selectedTicket.priority}</Badge>
                 </div>
-                <p className="text-sm text-neutral-300">{selectedTicket.message}</p>
+                <p className="text-sm text-neutral-300 whitespace-pre-wrap">{selectedTicket.message}</p>
               </div>
 
               {/* Conversation Thread */}
@@ -298,13 +305,13 @@ export default function SupportPage() {
                   </Button>
                 )}
                 <Select value={selectedTicket.status} onValueChange={(v) => updateStatus(selectedTicket.id, v)}>
-                  <SelectTrigger className="w-[140px] bg-neutral-800 border-neutral-700 text-white text-xs h-8">
+                  <SelectTrigger className="w-full sm:w-[170px] bg-neutral-800 border-neutral-700 text-white text-xs h-8">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-neutral-800 border-neutral-700">
-                    <SelectItem value="NEW">New</SelectItem>
                     <SelectItem value="OPEN">Open</SelectItem>
                     <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="WAITING_ON_CUSTOMER">Waiting on Customer</SelectItem>
                     <SelectItem value="RESOLVED">Resolved</SelectItem>
                     <SelectItem value="CLOSED">Closed</SelectItem>
                   </SelectContent>

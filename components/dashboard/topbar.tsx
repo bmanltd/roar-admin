@@ -8,10 +8,14 @@ import {
   DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Bell, Moon, Sun, LogOut, User, Settings } from 'lucide-react';
+import { Bell, Moon, Sun, LogOut, User, Settings, Menu } from 'lucide-react';
 import Link from 'next/link';
 
-export function Topbar() {
+interface TopbarProps {
+  onMenuToggle?: () => void;
+}
+
+export function Topbar({ onMenuToggle }: TopbarProps) {
   const { admin, logout } = useAuth();
   const { theme, setTheme, resolvedTheme } = useTheme();
 
@@ -23,10 +27,21 @@ export function Topbar() {
     .slice(0, 2) || 'AD';
 
   return (
-    <header className="h-16 border-b border-neutral-800/50 bg-neutral-900/80 backdrop-blur-xl flex items-center justify-between px-6">
-      <div>
-        <h2 className="text-sm font-medium text-white">Administration Dashboard</h2>
-        <p className="text-xs text-neutral-500">Manage BMan Stock ecosystem</p>
+    <header className="h-16 border-b border-neutral-800/50 bg-neutral-900/80 backdrop-blur-xl flex items-center justify-between px-4 md:px-6">
+      <div className="flex items-center gap-3">
+        {/* Mobile hamburger */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden text-neutral-400 hover:text-emerald-400 hover:bg-emerald-500/10"
+          onClick={onMenuToggle}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+        <div>
+          <h2 className="text-sm font-medium text-white">Administration Dashboard</h2>
+          <p className="text-xs text-neutral-500 hidden sm:block">Manage BMan Stock ecosystem</p>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

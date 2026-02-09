@@ -462,8 +462,8 @@ export default function MailingsPage() {
                   <thead>
                     <tr className="border-b border-neutral-800">
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">Name</th>
-                      <th className="text-left p-4 text-sm font-medium text-neutral-400">Subject</th>
-                      <th className="text-left p-4 text-sm font-medium text-neutral-400">Category</th>
+                      <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Subject</th>
+                      <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Category</th>
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
                       <th className="text-right p-4 text-sm font-medium text-neutral-400">Actions</th>
                     </tr>
@@ -485,8 +485,8 @@ export default function MailingsPage() {
                           <td className="p-4">
                             <p className="text-sm font-medium text-white">{template.name}</p>
                           </td>
-                          <td className="p-4 text-sm text-neutral-300">{template.subject}</td>
-                          <td className="p-4">
+                          <td className="hidden md:table-cell p-4 text-sm text-neutral-300">{template.subject}</td>
+                          <td className="hidden md:table-cell p-4">
                             <Badge variant="outline" className={`text-xs ${categoryColors[template.category] || ''}`}>
                               {template.category}
                             </Badge>
@@ -779,8 +779,8 @@ export default function MailingsPage() {
         {/* History Tab */}
         <TabsContent value="history" className="mt-4">
           {/* Filters */}
-          <div className="flex flex-wrap gap-3 mb-4">
-            <div className="relative flex-1 min-w-[200px]">
+          <div className="flex flex-col sm:flex-row flex-wrap gap-3 mb-4">
+            <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 top-3 h-4 w-4 text-neutral-500" />
               <Input
                 placeholder="Search by recipient email..."
@@ -793,14 +793,14 @@ export default function MailingsPage() {
               type="date"
               value={historyDateFrom}
               onChange={(e) => { setHistoryDateFrom(e.target.value); setHistoryPage(1); }}
-              className="w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white"
+              className="w-full sm:w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white"
               placeholder="From date"
             />
             <Input
               type="date"
               value={historyDateTo}
               onChange={(e) => { setHistoryDateTo(e.target.value); setHistoryPage(1); }}
-              className="w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white"
+              className="w-full sm:w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white"
               placeholder="To date"
             />
           </div>
@@ -812,10 +812,10 @@ export default function MailingsPage() {
                   <thead>
                     <tr className="border-b border-neutral-800">
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">Recipient</th>
-                      <th className="text-left p-4 text-sm font-medium text-neutral-400">Subject</th>
-                      <th className="text-left p-4 text-sm font-medium text-neutral-400">Template</th>
+                      <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Subject</th>
+                      <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Template</th>
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
-                      <th className="text-left p-4 text-sm font-medium text-neutral-400">Sent By</th>
+                      <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Sent By</th>
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">Date</th>
                     </tr>
                   </thead>
@@ -834,14 +834,14 @@ export default function MailingsPage() {
                       history.map((item) => (
                         <tr key={item.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/30">
                           <td className="p-4 text-sm text-white">{item.recipientEmail}</td>
-                          <td className="p-4 text-sm text-neutral-300 max-w-[200px] truncate">{item.subject}</td>
-                          <td className="p-4 text-sm text-neutral-400">{item.templateId ? 'Template' : '-'}</td>
+                          <td className="hidden md:table-cell p-4 text-sm text-neutral-300 max-w-[200px] truncate">{item.subject}</td>
+                          <td className="hidden md:table-cell p-4 text-sm text-neutral-400">{item.templateId ? 'Template' : '-'}</td>
                           <td className="p-4">
                             <Badge variant="outline" className={`text-xs ${statusColors[item.status.toLowerCase()] || ''}`}>
                               {item.status}
                             </Badge>
                           </td>
-                          <td className="p-4 text-sm text-neutral-400">{item.sentByName || '-'}</td>
+                          <td className="hidden md:table-cell p-4 text-sm text-neutral-400">{item.sentByName || '-'}</td>
                           <td className="p-4 text-sm text-neutral-400">
                             {item.sentAt ? new Date(item.sentAt).toLocaleDateString('en-US', {
                               month: 'short',

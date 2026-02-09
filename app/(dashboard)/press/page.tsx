@@ -127,9 +127,9 @@ export default function PressPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div><h1 className="text-2xl font-bold text-white">Press & News</h1><p className="text-neutral-400 text-sm mt-1">Manage articles and announcements</p></div>
-        <Button onClick={() => setShowCreate(true)} className="bg-emerald-600 hover:bg-emerald-700"><Plus className="h-4 w-4 mr-2" /> New Article</Button>
+        <Button onClick={() => setShowCreate(true)} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"><Plus className="h-4 w-4 mr-2" /> New Article</Button>
       </div>
       {isLoading ? <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20 bg-neutral-800" />)}</div> : (
         <div className="space-y-3">
