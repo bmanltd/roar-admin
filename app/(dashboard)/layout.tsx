@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { Sidebar, Topbar } from '@/components/dashboard';
 import { useAuth } from '@/contexts/auth-context';
 import { Loader2 } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface SidebarContextType {
   isCollapsed: boolean;
@@ -23,6 +24,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const { isAuthenticated, isLoading } = useAuth();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
@@ -53,13 +55,21 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <SidebarContext.Provider value={{ isCollapsed: sidebarCollapsed, setIsCollapsed: setSidebarCollapsed }}>
       <div className="min-h-screen bg-neutral-950 bg-grid-emerald">
-        <Sidebar isCollapsed={sidebarCollapsed} onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} />
+        <Sidebar
+          isCollapsed={sidebarCollapsed}
+          onToggle={() => setSidebarCollapsed(!sidebarCollapsed)}
+          mobileOpen={mobileMenuOpen}
+          onMobileClose={() => setMobileMenuOpen(false)}
+        />
         <div
-          className="min-h-screen flex flex-col transition-all duration-300"
-          style={{ marginLeft: sidebarCollapsed ? 72 : 260 }}
+          className={cn(
+            'min-h-screen flex flex-col transition-all duration-300',
+            'ml-0',
+            sidebarCollapsed ? 'md:ml-[72px]' : 'md:ml-[260px]'
+          )}
         >
-          <Topbar />
-          <main className="flex-1 p-6">
+          <Topbar onMenuToggle={() => setMobileMenuOpen(true)} />
+          <main className="flex-1 p-4 md:p-6">
             {children}
           </main>
         </div>

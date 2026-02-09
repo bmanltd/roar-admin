@@ -97,10 +97,10 @@ export default function AdminUsersPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div><h1 className="text-2xl font-bold text-white">Admin Users</h1><p className="text-neutral-400 text-sm mt-1">Manage admin team access</p></div>
         {admin?.role === 'SUPER_ADMIN' && (
-          <Button onClick={() => setShowInvite(true)} className="bg-emerald-600 hover:bg-emerald-700"><UserPlus className="h-4 w-4 mr-2" /> Invite Admin</Button>
+          <Button onClick={() => setShowInvite(true)} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700"><UserPlus className="h-4 w-4 mr-2" /> Invite Admin</Button>
         )}
       </div>
       <Card className="bg-neutral-900/80 border-neutral-800/50">
@@ -109,9 +109,9 @@ export default function AdminUsersPage() {
             <thead><tr className="border-b border-neutral-800">
               <th className="text-left p-4 text-sm font-medium text-neutral-400">Admin</th>
               <th className="text-left p-4 text-sm font-medium text-neutral-400">Role</th>
-              <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
-              <th className="text-left p-4 text-sm font-medium text-neutral-400">Last Login</th>
-              <th className="text-left p-4 text-sm font-medium text-neutral-400">Joined</th>
+              <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Status</th>
+              <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Last Login</th>
+              <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Joined</th>
               <th className="text-right p-4 text-sm font-medium text-neutral-400">Actions</th>
             </tr></thead>
             <tbody>
@@ -119,9 +119,9 @@ export default function AdminUsersPage() {
                 <tr key={a.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/30">
                   <td className="p-4"><p className="text-sm font-medium text-white">{a.fullName}</p><p className="text-xs text-neutral-500">{a.email}</p></td>
                   <td className="p-4"><Badge variant="outline" className={`text-xs ${roleColors[a.role] || ''}`}>{a.role.replace('_', ' ')}</Badge></td>
-                  <td className="p-4"><Badge variant="outline" className={`text-xs ${a.isActive ? 'text-green-400 border-green-500/30' : 'text-red-400 border-red-500/30'}`}>{a.isActive ? 'Active' : 'Inactive'}</Badge></td>
-                  <td className="p-4 text-sm text-neutral-400">{a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleDateString() : 'Never'}</td>
-                  <td className="p-4 text-sm text-neutral-400">{new Date(a.createdAt).toLocaleDateString()}</td>
+                  <td className="hidden md:table-cell p-4"><Badge variant="outline" className={`text-xs ${a.isActive ? 'text-green-400 border-green-500/30' : 'text-red-400 border-red-500/30'}`}>{a.isActive ? 'Active' : 'Inactive'}</Badge></td>
+                  <td className="hidden md:table-cell p-4 text-sm text-neutral-400">{a.lastLoginAt ? new Date(a.lastLoginAt).toLocaleDateString() : 'Never'}</td>
+                  <td className="hidden md:table-cell p-4 text-sm text-neutral-400">{new Date(a.createdAt).toLocaleDateString()}</td>
                   <td className="p-4">
                     <div className="flex items-center justify-end gap-2">
                       <Button variant="ghost" size="sm" onClick={() => openDetail(a)} className="text-neutral-400 hover:text-emerald-400 hover:bg-emerald-500/10"><Eye className="h-4 w-4" /></Button>

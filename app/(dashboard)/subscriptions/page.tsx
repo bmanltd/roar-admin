@@ -211,9 +211,9 @@ export default function SubscriptionsPage() {
         </TabsList>
 
         <TabsContent value="subscriptions" className="mt-4">
-          <div className="flex items-center justify-between gap-3 mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
             <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-              <SelectTrigger className="w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white">
+              <SelectTrigger className="w-full sm:w-[160px] bg-neutral-900/80 border-neutral-800/50 text-white">
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent className="bg-neutral-900/80 border-neutral-800/50">
@@ -225,7 +225,7 @@ export default function SubscriptionsPage() {
                 <SelectItem value="CANCELLED">Cancelled</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={() => setShowCreate(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+            <Button onClick={() => setShowCreate(true)} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700 text-white">
               <Plus className="h-4 w-4 mr-2" />
               Create Subscription
             </Button>
@@ -240,8 +240,8 @@ export default function SubscriptionsPage() {
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">User</th>
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">Tier</th>
                       <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
-                      <th className="text-left p-4 text-sm font-medium text-neutral-400">Cycle</th>
-                      <th className="text-left p-4 text-sm font-medium text-neutral-400">Expires</th>
+                      <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Cycle</th>
+                      <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Expires</th>
                       <th className="text-right p-4 text-sm font-medium text-neutral-400">Actions</th>
                     </tr>
                   </thead>
@@ -261,8 +261,8 @@ export default function SubscriptionsPage() {
                           </td>
                           <td className="p-4"><Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-xs">{sub.tier.displayName}</Badge></td>
                           <td className="p-4"><Badge variant="outline" className={`text-xs ${statusColors[sub.status] || ''}`}>{sub.status}</Badge></td>
-                          <td className="p-4 text-sm text-neutral-300">{sub.billingCycle}</td>
-                          <td className="p-4 text-sm text-neutral-400">{new Date(sub.expiresAt).toLocaleDateString()}</td>
+                          <td className="hidden md:table-cell p-4 text-sm text-neutral-300">{sub.billingCycle}</td>
+                          <td className="hidden md:table-cell p-4 text-sm text-neutral-400">{new Date(sub.expiresAt).toLocaleDateString()}</td>
                           <td className="p-4 text-right">
                             <div className="flex items-center justify-end gap-1">
                               <Button variant="ghost" size="icon" className="h-8 w-8 text-neutral-400 hover:text-emerald-400"

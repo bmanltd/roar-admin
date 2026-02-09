@@ -96,19 +96,19 @@ export default function ProductKeysPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Product Keys</h1>
           <p className="text-neutral-400 text-sm mt-1">{total} total keys</p>
         </div>
-        <Button onClick={() => setShowGenerate(true)} className="bg-emerald-600 hover:bg-emerald-700">
+        <Button onClick={() => setShowGenerate(true)} className="w-full sm:w-auto bg-emerald-600 hover:bg-emerald-700">
           <Plus className="h-4 w-4 mr-2" /> Generate Keys
         </Button>
       </div>
 
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3">
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Status" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Status" /></SelectTrigger>
           <SelectContent className="bg-neutral-900/80 border-neutral-800/50">
             <SelectItem value="all">All Keys</SelectItem>
             <SelectItem value="unused">Unused</SelectItem>
@@ -116,7 +116,7 @@ export default function ProductKeysPage() {
           </SelectContent>
         </Select>
         <Select value={tierFilter} onValueChange={(v) => { setTierFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Tier" /></SelectTrigger>
+          <SelectTrigger className="w-full sm:w-[140px] bg-neutral-900/80 border-neutral-800/50 text-white"><SelectValue placeholder="Tier" /></SelectTrigger>
           <SelectContent className="bg-neutral-900/80 border-neutral-800/50">
             <SelectItem value="all">All Tiers</SelectItem>
             <SelectItem value="starter">Starter</SelectItem>
@@ -133,11 +133,11 @@ export default function ProductKeysPage() {
               <thead>
                 <tr className="border-b border-neutral-800">
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Key</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Tier</th>
+                  <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Tier</th>
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">User</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Devices</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Created</th>
+                  <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">User</th>
+                  <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Devices</th>
+                  <th className="hidden md:table-cell text-left p-4 text-sm font-medium text-neutral-400">Created</th>
                   <th className="text-right p-4 text-sm font-medium text-neutral-400">Actions</th>
                 </tr>
               </thead>
@@ -150,15 +150,15 @@ export default function ProductKeysPage() {
                   keys.map((k) => (
                     <tr key={k.id} className="border-b border-neutral-800/50 hover:bg-neutral-800/30">
                       <td className="p-4"><code className="text-sm text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded font-mono">{k.key}</code></td>
-                      <td className="p-4"><Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-400">{k.tier.displayName}</Badge></td>
+                      <td className="hidden md:table-cell p-4"><Badge variant="outline" className="text-xs border-emerald-500/50 text-emerald-400">{k.tier.displayName}</Badge></td>
                       <td className="p-4">
                         <Badge variant="outline" className={`text-xs ${k.isUsed ? 'text-green-400 border-green-500/30' : 'text-neutral-400 border-slate-500/30'}`}>
                           {k.isUsed ? 'Used' : 'Unused'}
                         </Badge>
                       </td>
-                      <td className="p-4 text-sm text-neutral-300">{k.user?.fullName || '-'}</td>
-                      <td className="p-4 text-sm text-neutral-300">{k.devicesRegistered}/{k.maxDevices}</td>
-                      <td className="p-4 text-sm text-neutral-400">{new Date(k.createdAt).toLocaleDateString()}</td>
+                      <td className="hidden md:table-cell p-4 text-sm text-neutral-300">{k.user?.fullName || '-'}</td>
+                      <td className="hidden md:table-cell p-4 text-sm text-neutral-300">{k.devicesRegistered}/{k.maxDevices}</td>
+                      <td className="hidden md:table-cell p-4 text-sm text-neutral-400">{new Date(k.createdAt).toLocaleDateString()}</td>
                       <td className="p-4 text-right">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-neutral-400 hover:text-white" onClick={() => copyKey(k.key)}>
                           <Copy className="h-4 w-4" />

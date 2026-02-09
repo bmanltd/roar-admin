@@ -87,11 +87,16 @@ const NAV_SECTIONS: NavSection[] = [
 interface SidebarProps {
   isCollapsed: boolean;
   onToggle: () => void;
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
-export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
+export function Sidebar({ isCollapsed, onToggle, mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { hasPermission, logout, admin } = useAuth();
+
+  // On mobile, always show expanded sidebar
+  const showCollapsed = isCollapsed && !mobileOpen;
 
   const getInitials = (name: string) => {
     return name
@@ -109,12 +114,24 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
 
   return (
     <TooltipProvider delayDuration={0}>
+      {/* Mobile backdrop */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 bg-black/60 z-30 md:hidden"
+          onClick={onMobileClose}
+        />
+      )}
       <aside
         className={cn(
           'fixed top-0 left-0 z-40 h-screen flex flex-col transition-all duration-300 ease-out',
           'bg-gradient-to-b from-neutral-950 via-neutral-950 to-neutral-900/95',
           'border-r border-neutral-800/40',
-          isCollapsed ? 'w-[72px]' : 'w-[260px]'
+          // Mobile: always w-[260px], hidden off-screen unless mobileOpen
+          'w-[260px] -translate-x-full md:translate-x-0',
+          mobileOpen && 'translate-x-0',
+          // Desktop: respect collapsed state
+          !mobileOpen && showCollapsed && 'md:w-[72px]',
+          !mobileOpen && !showCollapsed && 'md:w-[260px]'
         )}
       >
         {/* Subtle background glow */}
@@ -126,7 +143,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {/* Header */}
         <div className={cn(
           'relative flex items-center h-16 px-5 border-b border-neutral-800/40',
-          isCollapsed ? 'justify-center px-3' : 'gap-3'
+          showCollapsed ? 'justify-center px-3' : 'gap-3'
         )}>
           <div className={cn(
             'relative flex-shrink-0',
@@ -141,7 +158,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
               className="relative rounded-lg ring-1 ring-neutral-800/50"
             />
           </div>
-          {!isCollapsed && (
+          {!showCollapsed && (
             <div className="min-w-0">
               <h1 className="text-[15px] font-semibold text-white tracking-tight flex items-center gap-1.5">
                 BMan
@@ -157,12 +174,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           <nav className="space-y-6">
             {filteredSections.map((section) => (
               <div key={section.title}>
-                {!isCollapsed && (
+                {!showCollapsed && (
                   <h2 className="px-3 mb-2.5 text-[10px] font-semibold text-neutral-500/80 uppercase tracking-[0.1em]">
                     {section.title}
                   </h2>
                 )}
-                {isCollapsed && (
+                {showCollapsed && (
                   <div className="w-8 h-px bg-gradient-to-r from-transparent via-neutral-700/50 to-transparent mx-auto mb-3" />
                 )}
                 <div className="space-y-1">
@@ -170,7 +187,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                     const Icon = iconMap[item.icon] || LayoutDashboard;
                     const isActive = item.href === '/' ? pathname === '/' : pathname.startsWith(item.href);
 
-                    if (isCollapsed) {
+                    if (showCollapsed) {
                       return (
                         <Tooltip key={item.href}>
                           <TooltipTrigger asChild>
@@ -204,6 +221,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
                       <Link
                         key={item.href}
                         href={item.href}
+                        onClick={onMobileClose}
                         className={cn(
                           'group relative flex items-center gap-3 px-3 h-10 rounded-xl text-[13px] font-medium transition-all duration-200',
                           isActive
@@ -239,7 +257,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
         {/* User Profile & Logout */}
         <div className="relative border-t border-neutral-800/40 p-3 space-y-2">
           {/* User Profile */}
-          {isCollapsed ? (
+          {showCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <div className="flex items-center justify-center">
@@ -290,7 +308,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           )}
 
           {/* Logout Button */}
-          {isCollapsed ? (
+          {showCollapsed ? (
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
@@ -321,7 +339,7 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           )}
 
           {/* Version */}
-          {!isCollapsed && (
+          {!showCollapsed && (
             <div className="pt-2 mt-2 border-t border-neutral-800/30">
               <p className="text-[10px] text-neutral-600 text-center tracking-wide">
                 v1.0.0
@@ -330,12 +348,12 @@ export function Sidebar({ isCollapsed, onToggle }: SidebarProps) {
           )}
         </div>
 
-        {/* Toggle Button */}
+        {/* Toggle Button — desktop only */}
         <button
           onClick={onToggle}
           className={cn(
             'group absolute -right-4 top-1/2 -translate-y-1/2 z-50',
-            'w-8 h-8 rounded-full flex items-center justify-center',
+            'hidden md:flex w-8 h-8 rounded-full items-center justify-center',
             'bg-gradient-to-br from-neutral-800 via-neutral-850 to-neutral-900',
             'border border-neutral-700/60',
             'text-neutral-400 hover:text-emerald-400',

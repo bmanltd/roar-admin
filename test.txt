@@ -1,0 +1,23 @@
+# Next.js
+NEXT_PUBLIC_APP_URL=http://localhost:3001
+NEXT_PUBLIC_APP_NAME=BMan Ltd
+
+# Prisma Database URL (same Supabase as bman-web)
+DATABASE_URL="postgresql://postgres.zxqlfpvozfgcrsbcaqxz:26Butman123!@aws-1-us-west-1.pooler.supabase.com:6543/postgres?pgbouncer=true"
+DIRECT_URL="postgresql://postgres.zxqlfpvozfgcrsbcaqxz:26Butman123!@aws-1-us-west-1.pooler.supabase.com:5432/postgres"
+
+# Admin JWT (separate from bman-web)
+ADMIN_JWT_SECRET=ADM_x9K2mP5vQ8rT1wY4zA7cF0eH3jL6nB9dG2iO5sU8
+ADMIN_JWT_REFRESH_SECRET=ADM_RF_p3Q6tW9yB2eK5hN8jM1oR4uX7zA0cF3gI6lS9
+
+# Brevo (same as bman-web)
+BREVO_API_KEY=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
+BREVO_SENDER_EMAIL=butmanltd@gmail.com
+BREVO_SENDER_NAME=BMan Stock
+
+# TOTP
+TOTP_ENCRYPTION_KEY=bman-admin-totp-key-secure-2026
+
+# App
+APP_NAME=BMan Admin
+SUPPORT_EMAIL=support@butman.rw

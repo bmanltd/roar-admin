@@ -220,20 +220,20 @@ export default function PaymentsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-bold text-white">Payments</h1>
           <p className="text-neutral-400 text-sm mt-1">{total} total payments</p>
         </div>
-        <Button onClick={() => setShowRecordDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+        <Button onClick={() => setShowRecordDialog(true)} className="bg-emerald-600 hover:bg-emerald-700 text-white w-full sm:w-auto">
           <Plus className="h-4 w-4 mr-2" /> Record Payment
         </Button>
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3">
         <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v); setPage(1); }}>
-          <SelectTrigger className="w-[160px] bg-neutral-900 border-neutral-800 text-white">
+          <SelectTrigger className="w-full sm:w-[160px] bg-neutral-900 border-neutral-800 text-white">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent className="bg-neutral-900 border-neutral-800">
@@ -246,20 +246,20 @@ export default function PaymentsPage() {
             <SelectItem value="REFUNDED">Refunded</SelectItem>
           </SelectContent>
         </Select>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-2">
           <Input
             type="date"
             value={startDate}
             onChange={(e) => { setStartDate(e.target.value); setPage(1); }}
-            className="w-[160px] bg-neutral-900 border-neutral-800 text-white"
+            className="w-full sm:w-[160px] bg-neutral-900 border-neutral-800 text-white"
             placeholder="Start Date"
           />
-          <span className="text-neutral-500">to</span>
+          <span className="text-neutral-500 hidden sm:block">to</span>
           <Input
             type="date"
             value={endDate}
             onChange={(e) => { setEndDate(e.target.value); setPage(1); }}
-            className="w-[160px] bg-neutral-900 border-neutral-800 text-white"
+            className="w-full sm:w-[160px] bg-neutral-900 border-neutral-800 text-white"
             placeholder="End Date"
           />
         </div>
@@ -274,10 +274,10 @@ export default function PaymentsPage() {
                 <tr className="border-b border-neutral-800">
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">User</th>
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Amount</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Method</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Tier</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Method</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Tier</th>
                   <th className="text-left p-4 text-sm font-medium text-neutral-400">Status</th>
-                  <th className="text-left p-4 text-sm font-medium text-neutral-400">Date</th>
+                  <th className="text-left p-4 text-sm font-medium text-neutral-400 hidden md:table-cell">Date</th>
                   <th className="text-right p-4 text-sm font-medium text-neutral-400">Actions</th>
                 </tr>
               </thead>
@@ -309,8 +309,8 @@ export default function PaymentsPage() {
                           {payment.amount.toLocaleString()} {payment.currency}
                         </p>
                       </td>
-                      <td className="p-4 text-sm text-neutral-300">{payment.paymentMethod}</td>
-                      <td className="p-4">
+                      <td className="p-4 text-sm text-neutral-300 hidden md:table-cell">{payment.paymentMethod}</td>
+                      <td className="p-4 hidden md:table-cell">
                         <Badge variant="outline" className="border-emerald-500/50 text-emerald-400 text-xs">
                           {payment.planTier}
                         </Badge>
@@ -321,7 +321,7 @@ export default function PaymentsPage() {
                           {payment.status}
                         </Badge>
                       </td>
-                      <td className="p-4 text-sm text-neutral-400">
+                      <td className="p-4 text-sm text-neutral-400 hidden md:table-cell">
                         {new Date(payment.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
                       </td>
                       <td className="p-4 text-right">

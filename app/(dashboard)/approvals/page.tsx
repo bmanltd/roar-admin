@@ -256,7 +256,7 @@ export default function ApprovalsPage() {
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3">
+      <div className="flex flex-col sm:flex-row flex-wrap gap-3">
         <Select
           value={statusFilter}
           onValueChange={(v) => {
@@ -264,7 +264,7 @@ export default function ApprovalsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[160px] bg-neutral-900 border-neutral-800 text-white">
+          <SelectTrigger className="w-full sm:w-[160px] bg-neutral-900 border-neutral-800 text-white">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent className="bg-neutral-900 border-neutral-800">
@@ -286,7 +286,7 @@ export default function ApprovalsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[200px] bg-neutral-900 border-neutral-800 text-white">
+          <SelectTrigger className="w-full sm:w-[200px] bg-neutral-900 border-neutral-800 text-white">
             <SelectValue placeholder="Action Type" />
           </SelectTrigger>
           <SelectContent className="bg-neutral-900 border-neutral-800">
